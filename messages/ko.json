@@ -846,8 +846,13 @@
         "language": "언어",
         "confirmTitle": "브로드캐스트 확인",
         "confirmDesc": "<b>{template}</b> 템플릿으로 연락처 <b>{count, number}</b>명에게 이 브로드캐스트를 보내려고 합니다. 이 작업은 되돌릴 수 없습니다.",
-        "scheduleToggleLabel": "나중에 예약하기",
-        "scheduleToggleDesc": "지금 보내는 대신 날짜와 시간을 선택하려면 켜세요."
+        "sendModeQuestion": "이 캠페인을 언제 보낼까요?",
+        "sendModeSubtitle": "지금 보내거나 나중으로 예약할 수 있습니다.",
+        "sendNowCardTitle": "지금 보내기",
+        "sendNowCardDesc": "확인 즉시 발송을 시작합니다.",
+        "scheduleCardTitle": "나중에 예약",
+        "scheduleCardDesc": "자동으로 보낼 날짜와 시간을 선택하세요.",
+        "timezoneLabel": "시간대"
       }
     },
     "newCampaignModal": {

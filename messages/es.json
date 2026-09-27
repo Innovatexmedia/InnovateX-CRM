@@ -846,8 +846,13 @@
         "language": "Idioma",
         "confirmTitle": "Confirmar difusión",
         "confirmDesc": "Estás a punto de enviar esta difusión a <b>{count, number}</b> {count, plural, =1 {contacto} other {contactos}} con la plantilla <b>{template}</b>. Esta acción no se puede deshacer.",
-        "scheduleToggleLabel": "Programar para más tarde",
-        "scheduleToggleDesc": "Actívalo para elegir una fecha y hora en lugar de enviar ahora."
+        "sendModeQuestion": "¿Cuándo debe enviarse esta campaña?",
+        "sendModeSubtitle": "Elige enviarla ahora o programarla para más tarde.",
+        "sendNowCardTitle": "Enviar ahora",
+        "sendNowCardDesc": "Empieza a enviarse de inmediato tras confirmar.",
+        "scheduleCardTitle": "Programar para más tarde",
+        "scheduleCardDesc": "Elige una fecha y hora para enviarla automáticamente.",
+        "timezoneLabel": "Zona horaria"
       }
     },
     "newCampaignModal": {
