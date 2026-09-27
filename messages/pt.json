@@ -480,6 +480,7 @@
       "title": "Importar contatos",
       "desc": "Envie um CSV com uma coluna <phoneCode>phone</phoneCode> obrigatória. Opcionais: <nameCode>name</nameCode>, <emailCode>email</emailCode>, <companyCode>company</companyCode>, <tagsCode>tags</tagsCode> (separadas por vírgula; coloque células com várias tags entre aspas).",
       "uploadDropzone": "Clique para escolher um arquivo CSV",
+      "downloadSample": "Baixar CSV de exemplo",
       "uploadHint": ".csv até o limite do seu navegador",
       "rowsReady": "{count} linha pronta",
       "rowsReady_plural": "{count} linhas prontas",

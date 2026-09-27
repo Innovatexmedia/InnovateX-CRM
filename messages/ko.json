@@ -480,6 +480,7 @@
       "title": "연락처 가져오기",
       "desc": "필수 <phoneCode>phone</phoneCode> 열이 포함된 CSV를 업로드하세요. 선택 항목: <nameCode>name</nameCode>, <emailCode>email</emailCode>, <companyCode>company</companyCode>, <tagsCode>tags</tagsCode> (쉼표로 구분; 여러 태그가 있는 셀은 따옴표로 묶으세요).",
       "uploadDropzone": "클릭하여 CSV 파일 선택",
+      "downloadSample": "샘플 CSV 다운로드",
       "uploadHint": "브라우저 제한까지 .csv 업로드 가능",
       "rowsReady": "{count}개 행 준비됨",
       "rowsReady_plural": "{count}개 행 준비됨",
