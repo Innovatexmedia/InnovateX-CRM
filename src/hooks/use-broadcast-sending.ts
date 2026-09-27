@@ -251,6 +251,16 @@ export function useBroadcastSending(): UseBroadcastSendingReturn {
       contacts = contacts.filter((c) => !excludedIds.has(c.id));
     }
 
+    // Hard, non-overridable compliance exclusion (migration 044). The
+    // real enforcement point is server-side (POST /api/whatsapp/broadcast
+    // and the API-campaign send path both re-check subscription_status
+    // against the DB regardless of what this function returns) — this
+    // filter just keeps the UI's recipient count and the
+    // broadcast_recipients rows this client creates in agreement with
+    // what will actually be sent, instead of creating "pending" rows
+    // that the send route immediately marks 'failed'.
+    contacts = contacts.filter((c) => c.subscription_status !== 'opted_out');
+
     return contacts;
   }
 

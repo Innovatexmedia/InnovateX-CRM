@@ -6,7 +6,7 @@ import { addContactTag, deleteContactTag } from '@/lib/contacts/tag-api';
 import { useAuth } from '@/hooks/use-auth';
 import { formatCurrency } from '@/lib/currency';
 import { toast } from 'sonner';
-import type { Contact, Tag, ContactTag, ContactNote, CustomField, ContactCustomValue, Deal, MessageTemplate } from '@/types';
+import type { Contact, Tag, ContactNote, CustomField, Deal, MessageTemplate } from '@/types';
 import {
   TemplatePicker,
   type TemplateSendValues,
@@ -25,7 +25,6 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import {
   Phone,
   Mail,
@@ -36,7 +35,6 @@ import {
   Plus,
   Trash2,
   Save,
-  X,
   DollarSign,
   LayoutTemplate,
 } from 'lucide-react';
@@ -70,6 +68,9 @@ export function ContactDetailView({
   // find-or-creates the conversation, so no inbound message is required.
   const [templatePickerOpen, setTemplatePickerOpen] = useState(false);
   const [sendingTemplate, setSendingTemplate] = useState(false);
+
+  // Opt-in / opt-out (migration 044) — manual toggle from the dashboard.
+  const [savingOptStatus, setSavingOptStatus] = useState(false);
 
   // Details tab
   const [editName, setEditName] = useState('');
@@ -197,6 +198,30 @@ export function ContactDetailView({
     await navigator.clipboard.writeText(contactHandle(contact));
     setCopiedPhone(true);
     setTimeout(() => setCopiedPhone(false), 2000);
+  }
+
+  async function toggleOptStatus(direction: 'in' | 'out') {
+    if (!contact) return;
+    setSavingOptStatus(true);
+    try {
+      const res = await fetch(`/api/contacts/${contact.id}/opt-out`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ direction }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        toast.error(data.error ?? t('toastOptStatusFailed'));
+        return;
+      }
+      setContact(data.contact);
+      toast.success(direction === 'in' ? t('toastOptedIn') : t('toastOptedOut'));
+      onUpdated();
+    } catch {
+      toast.error(t('toastOptStatusFailed'));
+    } finally {
+      setSavingOptStatus(false);
+    }
   }
 
   async function saveDetails() {
@@ -410,9 +435,19 @@ export function ContactDetailView({
                   </AvatarFallback>
                 </Avatar>
                 <div className="flex-1 min-w-0">
-                  <SheetTitle className="text-popover-foreground truncate">
-                    {contact.name || t('unnamed')}
-                  </SheetTitle>
+                  <div className="flex items-center gap-2">
+                    <SheetTitle className="text-popover-foreground truncate">
+                      {contact.name || t('unnamed')}
+                    </SheetTitle>
+                    <SubscriptionBadge
+                      status={contact.subscription_status ?? 'unknown'}
+                      labels={{
+                        opted_in: t('subscription.optedIn'),
+                        opted_out: t('subscription.optedOut'),
+                        unknown: t('subscription.unknown'),
+                      }}
+                    />
+                  </div>
                   <SheetDescription className="text-muted-foreground text-xs mt-0.5">
                     {t('contactDetailsDesc')}
                   </SheetDescription>
@@ -444,7 +479,7 @@ export function ContactDetailView({
                   </div>
                 </div>
               </div>
-              <div className="mt-3">
+              <div className="mt-3 flex flex-wrap items-center gap-2">
                 <Button
                   size="sm"
                   onClick={() => setTemplatePickerOpen(true)}
@@ -458,6 +493,29 @@ export function ContactDetailView({
                   )}
                   {t('sendTemplateBtn')}
                 </Button>
+                {contact.subscription_status === 'opted_out' ? (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => toggleOptStatus('in')}
+                    disabled={savingOptStatus}
+                    className="border-border text-muted-foreground hover:text-foreground"
+                  >
+                    {savingOptStatus && <Loader2 className="size-4 animate-spin" />}
+                    {t('subscription.optInAction')}
+                  </Button>
+                ) : (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => toggleOptStatus('out')}
+                    disabled={savingOptStatus}
+                    className="border-border text-muted-foreground hover:text-foreground"
+                  >
+                    {savingOptStatus && <Loader2 className="size-4 animate-spin" />}
+                    {t('subscription.optOutAction')}
+                  </Button>
+                )}
               </div>
             </SheetHeader>
 
@@ -767,5 +825,34 @@ export function ContactDetailView({
       onSelect={handleSendTemplate}
     />
     </>
+  );
+}
+
+/** Small subscription-status pill shown next to a contact's name. */
+function SubscriptionBadge({
+  status,
+  labels,
+}: {
+  status: 'opted_in' | 'opted_out' | 'unknown';
+  labels: { opted_in: string; opted_out: string; unknown: string };
+}) {
+  if (status === 'opted_out') {
+    return (
+      <Badge variant="destructive" className="shrink-0">
+        {labels.opted_out}
+      </Badge>
+    );
+  }
+  if (status === 'opted_in') {
+    return (
+      <Badge variant="secondary" className="shrink-0 bg-green-500/10 text-green-600 dark:text-green-400">
+        {labels.opted_in}
+      </Badge>
+    );
+  }
+  return (
+    <Badge variant="outline" className="shrink-0">
+      {labels.unknown}
+    </Badge>
   );
 }

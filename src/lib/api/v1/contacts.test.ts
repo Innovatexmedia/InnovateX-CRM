@@ -44,6 +44,7 @@ describe('serializeContact', () => {
       company: 'Acme',
       avatar_url: null,
       tags: [{ id: 't1', name: 'vip', color: '#fff' }],
+      subscription_status: 'unknown',
       created_at: '2026-01-01T00:00:00Z',
       updated_at: '2026-01-02T00:00:00Z',
     });

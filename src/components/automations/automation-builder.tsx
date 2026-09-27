@@ -92,6 +92,9 @@ export interface BuilderInitial {
   trigger_type: AutomationTriggerType
   trigger_config: Record<string, unknown>
   is_active: boolean
+  /** Skip contacts with subscription_status='opted_out' when this
+   *  automation runs (migration 044). Defaults to true. */
+  skip_opted_out?: boolean
   steps: BuilderStep[]
 }
 
@@ -678,6 +681,7 @@ export function AutomationBuilder({ initial }: { initial: BuilderInitial }) {
         trigger_type: state.trigger_type,
         trigger_config: state.trigger_config,
         is_active: state.is_active,
+        skip_opted_out: state.skip_opted_out ?? true,
         steps: toApiSteps(state.steps),
       }
 
@@ -755,6 +759,22 @@ export function AutomationBuilder({ initial }: { initial: BuilderInitial }) {
           {isEditing ? t("save") : t("saveDraft")}
         </Button>
       </header>
+
+      {/* Compliance settings strip — currently just the opt-out skip
+          toggle; a small bar rather than a full settings panel, matching
+          this builder's minimal chrome (name + active live in the header
+          above). */}
+      <div className="flex flex-shrink-0 items-center justify-between gap-2 border-b border-border bg-card/40 px-3 py-2 sm:px-4">
+        <div className="min-w-0">
+          <p className="text-xs font-medium text-foreground">{t("skipOptedOut.label")}</p>
+          <p className="text-[11px] text-muted-foreground">{t("skipOptedOut.description")}</p>
+        </div>
+        <Switch
+          checked={state.skip_opted_out ?? true}
+          onCheckedChange={(v) => patchTop("skip_opted_out", !!v)}
+          aria-label={t("skipOptedOut.aria")}
+        />
+      </div>
 
       {/* Canvas */}
       <div className="relative flex-1 overflow-y-auto">

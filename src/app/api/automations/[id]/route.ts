@@ -84,6 +84,7 @@ export async function PATCH(
     'trigger_type',
     'trigger_config',
     'is_active',
+    'skip_opted_out',
   ] as const) {
     if (k in body) update[k] = body[k]
   }

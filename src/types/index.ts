@@ -124,6 +124,13 @@ export interface Contact {
   /** Hydrated by queries that embed `contact_tags(tags(*))` (e.g. the
    *  Inbox conversation list, for tag filtering). Absent otherwise. */
   tags?: Tag[];
+  /** WhatsApp opt-in/opt-out compliance state (migration 044).
+   *  Defaults to 'unknown' for every contact created before this
+   *  migration — only 'opted_out' is ever excluded from sends. */
+  subscription_status?: SubscriptionStatus;
+  opted_in_at?: string | null;
+  opted_out_at?: string | null;
+  opt_source?: OptSource | null;
 }
 
 export interface Tag {
@@ -645,6 +652,9 @@ export interface Automation {
   is_active: boolean;
   execution_count: number;
   last_executed_at?: string | null;
+  /** Skip contacts with subscription_status='opted_out' when running
+   *  this automation's steps (migration 044). Defaults to true. */
+  skip_opted_out?: boolean;
   created_at: string;
   updated_at: string;
 }
@@ -698,6 +708,47 @@ export interface QuickReply {
   content_text?: string | null;
   /** Set when `kind === 'interactive'`. */
   interactive_payload?: InteractiveMessagePayload | null;
+  /** When true, a customer tapping this quick reply's button (via an
+   *  interactive-reply tap) counts as an opt-in — same effect as
+   *  matching an enabled opt-in keyword (migration 044). */
+  triggers_opt_in?: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+// ============================================================
+// Opt-in / opt-out management (migration 044)
+// ============================================================
+
+export type SubscriptionStatus = 'opted_in' | 'opted_out' | 'unknown';
+
+export type OptSource = 'keyword' | 'quick_reply' | 'manual' | 'api' | 'import';
+
+export type OptDirection = 'in' | 'out';
+
+export type OptMatchType = 'exact' | 'contains';
+
+export interface OptKeyword {
+  id: string;
+  account_id: string;
+  direction: OptDirection;
+  keyword: string;
+  match_type: OptMatchType;
+  enabled: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export type OptResponseType = 'template' | 'message';
+
+export interface OptResponse {
+  id: string;
+  account_id: string;
+  direction: OptDirection;
+  enabled: boolean;
+  response_type: OptResponseType;
+  template_id?: string | null;
+  message_text?: string | null;
   created_at: string;
   updated_at: string;
 }

@@ -192,6 +192,7 @@
       "noCustomerMessages": "고객 메시지 없음"
     },
     "composer": {
+      "optedOutHint": "이 연락처는 메시지 수신을 거부했습니다. 답장은 가능하지만 마케팅 콘텐츠는 보내지 마세요.",
       "draftHint": "✨를 눌러 AI로 답장 초안을 작성하세요 — 보내기 전에 수정할 수 있습니다",
       "sessionExpiredHint": "24시간 세션이 만료되었습니다. 다시 연결하려면 템플릿을 사용하세요.",
       "templates": "템플릿",
@@ -339,7 +340,8 @@
         "email": "이메일",
         "company": "회사",
         "tags": "태그",
-        "createdAt": "생성일"
+        "createdAt": "생성일",
+        "subscription": "구독 상태"
       },
       "loading": "연락처를 불러오는 중...",
       "noContactsMatch": "필터와 일치하는 연락처가 없습니다.",
@@ -360,7 +362,12 @@
       "toastFailedDelete": "연락처를 삭제하지 못했습니다",
       "toastDeleted": "연락처가 삭제되었습니다",
       "toastBulkFailedDelete": "연락처를 삭제하지 못했습니다",
-      "toastBulkDeleted": "연락처 {count}개가 삭제되었습니다"
+      "toastBulkDeleted": "연락처 {count}개가 삭제되었습니다",
+      "filterBySubscription": "구독 상태로 필터링",
+      "subscriptionFilterAll": "모든 구독 상태",
+      "subscriptionOptedIn": "수신 동의",
+      "subscriptionOptedOut": "수신 거부",
+      "subscriptionUnknown": "알 수 없음"
     },
     "form": {
       "addTitle": "연락처 추가",
@@ -457,7 +464,17 @@
       "toastCustomFieldsSaved": "커스텀 필드가 저장되었습니다",
       "toastCustomFieldsFailed": "커스텀 필드를 저장하지 못했습니다",
       "toastTemplateSent": "\"{name}\" 템플릿을 보냈습니다",
-      "toastTemplateFailed": "템플릿을 보내지 못했습니다: {reason}"
+      "toastTemplateFailed": "템플릿을 보내지 못했습니다: {reason}",
+      "subscription": {
+        "optedIn": "수신 동의",
+        "optedOut": "수신 거부",
+        "unknown": "알 수 없음",
+        "optInAction": "수신 동의로 변경",
+        "optOutAction": "수신 거부로 변경"
+      },
+      "toastOptStatusFailed": "구독 상태를 업데이트하지 못했습니다",
+      "toastOptedIn": "연락처가 수신 동의로 변경되었습니다",
+      "toastOptedOut": "연락처가 수신 거부로 변경되었습니다"
     },
     "importModal": {
       "title": "연락처 가져오기",
@@ -784,7 +801,8 @@
         "errorCsvParse": "CSV 파일을 파싱할 수 없습니다.",
         "errorCsvMissingPhone": "CSV에 'phone' 열이 있어야 합니다.",
         "audienceSummary": "대상 요약",
-        "calculating": "계산 중…"
+        "calculating": "계산 중…",
+        "optedOutExcluded": "{count}명의 연락처가 제외됨 (수신 거부)"
       },
       "personalize": {
         "title": "변수 개인화",
@@ -1125,6 +1143,11 @@
         "matchWordHint": "키워드가 독립된 단어일 때만 일치하므로 \"k\"가 \"thanks\"에서 실행되지 않습니다. 공백으로 단어를 구분하는 언어의 짧은 키워드에 적합하며, 공백 없이 표기하는 언어에는 \"포함\"을 사용하세요.",
         "matchExact": "정확히 일치",
         "closeConversationHint": "대화 상태를 \"닫힘\"으로 설정합니다. 추가 설정이 필요 없습니다."
+      },
+      "skipOptedOut": {
+        "label": "수신 거부 연락처 건너뛰기",
+        "description": "WhatsApp 메시지 수신을 거부한 연락처에는 이 자동화 단계가 실행되지 않습니다.",
+        "aria": "수신 거부 연락처 건너뛰기"
       }
     }
   },
@@ -1726,7 +1749,8 @@
       "fields": "필드 & 태그",
       "deals": "딜 & 통화",
       "members": "팀원",
-      "api": "API 키"
+      "api": "API 키",
+      "opt-management": "수신 동의/거부"
     },
     "groups": {
       "account": "계정",
@@ -1940,6 +1964,64 @@
       "editDoc": "수정",
       "deleteDoc": "삭제",
       "loading": "불러오는 중…"
+    },
+    "optManagement": {
+      "title": "수신 동의/거부 관리",
+      "description": "WhatsApp 메시지 규정을 준수하세요: 키워드와 자동 응답을 설정하고 누가 수신 동의/거부했는지 확인할 수 있습니다.",
+      "summary": {
+        "title": "구독 상태",
+        "description": "수신 동의, 수신 거부, 알 수 없음 상태의 연락처 수입니다.",
+        "optedIn": "수신 동의",
+        "optedOut": "수신 거부",
+        "unknown": "알 수 없음"
+      },
+      "optInKeywords": {
+        "title": "수신 동의 키워드",
+        "description": "고객이 이 단어 중 하나를 보내면 수신 동의로 표시됩니다."
+      },
+      "optOutKeywords": {
+        "title": "수신 거부 키워드",
+        "description": "고객이 이 단어 중 하나를 보내면 수신 거부로 표시되고 이후 브로드캐스트와 자동화에서 제외됩니다."
+      },
+      "optInResponse": {
+        "title": "수신 동의 응답",
+        "description": "고객이 수신 동의하면 자동으로 전송됩니다."
+      },
+      "optOutResponse": {
+        "title": "수신 거부 응답",
+        "description": "고객이 수신 거부하면 자동으로 전송됩니다."
+      },
+      "keywords": {
+        "placeholder": "예: START",
+        "matchContains": "포함",
+        "matchExact": "정확히 일치",
+        "add": "추가",
+        "empty": "아직 키워드가 없습니다.",
+        "enable": "활성화",
+        "disable": "비활성화",
+        "remove": "삭제",
+        "addFailed": "키워드를 추가하지 못했습니다.",
+        "updateFailed": "키워드를 업데이트하지 못했습니다.",
+        "deleteFailed": "키워드를 삭제하지 못했습니다.",
+        "maxOptOutReached": "활성화된 수신 거부 키워드는 최대 {count}개까지 가능합니다. 다른 키워드를 추가하려면 먼저 하나를 비활성화하세요.",
+        "maxOptOutNote": "동시에 최대 {count}개의 수신 거부 키워드를 활성화할 수 있습니다."
+      },
+      "responses": {
+        "messageType": "메시지",
+        "templateType": "템플릿",
+        "messagePlaceholder": "전송할 메시지",
+        "selectTemplate": "템플릿 선택",
+        "save": "저장",
+        "saved": "응답이 저장되었습니다",
+        "saveFailed": "응답을 저장하지 못했습니다."
+      },
+      "advanced": {
+        "title": "API 및 고급 설정",
+        "description": "공개 API 및 규정 준수 적용에 대한 추가 설정입니다.",
+        "apiOptOutLabel": "API를 통한 수신 거부 허용",
+        "apiOptOutHint": "contacts:write 권한이 있는 외부 연동은 POST /api/v1/contacts/'{id}'/opt-out으로 연락처를 수신 거부시킬 수 있습니다.",
+        "enforcementNote": "수신 거부한 연락처는 브로드캐스트와 자동화에서 항상 제외되며 이 설정은 끌 수 없습니다."
+      }
     }
   },
   "SignupPage": {

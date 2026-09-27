@@ -42,6 +42,10 @@ export async function POST(request: Request) {
 
   let content_text: string | null = null
   let interactive_payload: unknown = null
+  // Only meaningful for an interactive quick reply — a customer taps a
+  // button, not a plain-text snippet — but stored regardless so
+  // flipping kind later doesn't silently drop a previously-set flag.
+  const triggers_opt_in = body.triggers_opt_in === true
 
   if (kind === 'interactive') {
     const result = validateInteractivePayload(body.interactive_payload)
@@ -69,6 +73,7 @@ export async function POST(request: Request) {
       kind,
       content_text,
       interactive_payload,
+      triggers_opt_in,
     })
     .select()
     .single()

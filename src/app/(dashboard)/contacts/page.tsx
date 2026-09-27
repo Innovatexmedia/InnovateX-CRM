@@ -15,6 +15,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Badge } from '@/components/ui/badge';
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -77,6 +78,11 @@ export default function ContactsPage() {
   const [totalCount, setTotalCount] = useState(0);
   // Tag filter — contacts shown must have ANY of these tags (OR).
   const [selectedTagIds, setSelectedTagIds] = useState<string[]>([]);
+  // Subscription-status filter (migration 044). Not combined with the
+  // tag-filter RPC path below — see fetchContacts for why.
+  const [subscriptionFilter, setSubscriptionFilter] = useState<
+    'all' | 'opted_in' | 'opted_out' | 'unknown'
+  >('all');
 
   // Modals
   const [formOpen, setFormOpen] = useState(false);
@@ -164,6 +170,9 @@ export default function ContactsPage() {
         const like = `%${term}%`;
         query = query.or(`name.ilike.${like},phone.ilike.${like},email.ilike.${like}`);
       }
+      if (subscriptionFilter !== 'all') {
+        query = query.eq('subscription_status', subscriptionFilter);
+      }
 
       const { data, count: exactCount, error } = await query;
       if (seq !== fetchSeq.current) return; // superseded by a newer fetch
@@ -207,7 +216,7 @@ export default function ContactsPage() {
 
     setContacts(enriched);
     setLoading(false);
-  }, [supabase, page, search, selectedTagIds, tagsMap, t]);
+  }, [supabase, page, search, selectedTagIds, subscriptionFilter, tagsMap, t]);
 
   // Load-once-on-mount-ish data fetches. Each setter inside runs
   // inside an async promise completion (Supabase await), not
@@ -460,6 +469,21 @@ export default function ContactsPage() {
               )}
             </PopoverContent>
           </Popover>
+
+          <select
+            value={subscriptionFilter}
+            onChange={(e) => {
+              setSubscriptionFilter(e.target.value as typeof subscriptionFilter);
+              setPage(0);
+            }}
+            aria-label={t('filterBySubscription')}
+            className="h-9 shrink-0 rounded-md border border-border bg-card px-2.5 text-sm text-foreground outline-none focus:border-primary focus:ring-1 focus:ring-primary"
+          >
+            <option value="all">{t('subscriptionFilterAll')}</option>
+            <option value="opted_in">{t('subscriptionOptedIn')}</option>
+            <option value="opted_out">{t('subscriptionOptedOut')}</option>
+            <option value="unknown">{t('subscriptionUnknown')}</option>
+          </select>
         </div>
 
         {/* Active tag-filter chips */}
@@ -546,6 +570,7 @@ export default function ContactsPage() {
               <TableHead className="text-muted-foreground hidden md:table-cell">{t('tableColumns.email')}</TableHead>
               <TableHead className="text-muted-foreground hidden lg:table-cell">{t('tableColumns.company')}</TableHead>
               <TableHead className="text-muted-foreground hidden md:table-cell">{t('tableColumns.tags')}</TableHead>
+              <TableHead className="text-muted-foreground hidden lg:table-cell">{t('tableColumns.subscription')}</TableHead>
               <TableHead className="text-muted-foreground hidden lg:table-cell">{t('tableColumns.createdAt')}</TableHead>
               <TableHead className="text-muted-foreground w-12" />
             </TableRow>
@@ -553,7 +578,7 @@ export default function ContactsPage() {
           <TableBody>
             {loading ? (
               <TableRow className="border-border">
-                <TableCell colSpan={8} className="text-center py-12">
+                <TableCell colSpan={9} className="text-center py-12">
                   <div className="flex flex-col items-center gap-2">
                     <Loader2 className="size-6 animate-spin text-primary" />
                     <p className="text-sm text-muted-foreground">{t('loading')}</p>
@@ -562,7 +587,7 @@ export default function ContactsPage() {
               </TableRow>
             ) : contacts.length === 0 ? (
               <TableRow className="border-border">
-                <TableCell colSpan={8} className="text-center py-12">
+                <TableCell colSpan={9} className="text-center py-12">
                   <div className="flex flex-col items-center gap-2">
                     <Users className="size-8 text-muted-foreground" />
                     <p className="text-sm text-muted-foreground">
@@ -636,6 +661,16 @@ export default function ContactsPage() {
                         </span>
                       )}
                     </div>
+                  </TableCell>
+                  <TableCell className="hidden lg:table-cell">
+                    <SubscriptionStatusBadge
+                      status={contact.subscription_status ?? 'unknown'}
+                      labels={{
+                        opted_in: t('subscriptionOptedIn'),
+                        opted_out: t('subscriptionOptedOut'),
+                        unknown: t('subscriptionUnknown'),
+                      }}
+                    />
                   </TableCell>
                   <TableCell className="text-muted-foreground text-xs hidden lg:table-cell">
                     {new Date(contact.created_at).toLocaleDateString('en-US', {
@@ -829,4 +864,25 @@ export default function ContactsPage() {
       </Dialog>
     </div>
   );
+}
+
+/** Small subscription-status pill for the contacts table (migration 044). */
+function SubscriptionStatusBadge({
+  status,
+  labels,
+}: {
+  status: 'opted_in' | 'opted_out' | 'unknown';
+  labels: { opted_in: string; opted_out: string; unknown: string };
+}) {
+  if (status === 'opted_out') {
+    return <Badge variant="destructive">{labels.opted_out}</Badge>;
+  }
+  if (status === 'opted_in') {
+    return (
+      <Badge variant="secondary" className="bg-green-500/10 text-green-600 dark:text-green-400">
+        {labels.opted_in}
+      </Badge>
+    );
+  }
+  return <Badge variant="outline">{labels.unknown}</Badge>;
 }

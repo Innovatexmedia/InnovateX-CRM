@@ -68,6 +68,10 @@ export async function PATCH(
     }
   }
 
+  if (typeof body.triggers_opt_in === 'boolean') {
+    update.triggers_opt_in = body.triggers_opt_in
+  }
+
   if (Object.keys(update).length === 0) {
     return NextResponse.json({ ok: true })
   }

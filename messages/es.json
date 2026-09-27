@@ -192,6 +192,7 @@
       "noCustomerMessages": "Sin mensajes del cliente"
     },
     "composer": {
+      "optedOutHint": "Este contacto se ha dado de baja de los mensajes. Aún puedes responder, pero evita enviar contenido de marketing.",
       "draftHint": "Toca ✨ para redactar una respuesta con IA; puedes editarla antes de enviarla",
       "sessionExpiredHint": "La sesión de 24 horas expiró. Usa una plantilla para retomar el contacto.",
       "templates": "Plantillas",
@@ -339,7 +340,8 @@
         "email": "Correo",
         "company": "Empresa",
         "tags": "Etiquetas",
-        "createdAt": "Creado"
+        "createdAt": "Creado",
+        "subscription": "Suscripción"
       },
       "loading": "Cargando contactos...",
       "noContactsMatch": "Ningún contacto coincide con tus filtros.",
@@ -360,7 +362,12 @@
       "toastFailedDelete": "Error al eliminar el contacto",
       "toastDeleted": "Contacto eliminado",
       "toastBulkFailedDelete": "Error al eliminar los contactos",
-      "toastBulkDeleted": "{count} contactos eliminados"
+      "toastBulkDeleted": "{count} contactos eliminados",
+      "filterBySubscription": "Filtrar por estado de suscripción",
+      "subscriptionFilterAll": "Todas las suscripciones",
+      "subscriptionOptedIn": "Suscrito",
+      "subscriptionOptedOut": "Dado de baja",
+      "subscriptionUnknown": "Desconocido"
     },
     "form": {
       "addTitle": "Agregar contacto",
@@ -457,7 +464,17 @@
       "toastCustomFieldsSaved": "Campos personalizados guardados",
       "toastCustomFieldsFailed": "Error al guardar los campos personalizados",
       "toastTemplateSent": "Plantilla \"{name}\" enviada",
-      "toastTemplateFailed": "Error al enviar la plantilla: {reason}"
+      "toastTemplateFailed": "Error al enviar la plantilla: {reason}",
+      "subscription": {
+        "optedIn": "Suscrito",
+        "optedOut": "Dado de baja",
+        "unknown": "Desconocido",
+        "optInAction": "Suscribir",
+        "optOutAction": "Dar de baja"
+      },
+      "toastOptStatusFailed": "No se pudo actualizar el estado de suscripción",
+      "toastOptedIn": "Contacto suscrito",
+      "toastOptedOut": "Contacto dado de baja"
     },
     "importModal": {
       "title": "Importar contactos",
@@ -784,7 +801,8 @@
         "errorCsvParse": "No se pudo leer el archivo CSV.",
         "errorCsvMissingPhone": "El CSV debe tener una columna 'phone'.",
         "audienceSummary": "Resumen de la audiencia",
-        "calculating": "Calculando…"
+        "calculating": "Calculando…",
+        "optedOutExcluded": "{count} contacto(s) excluido(s) (dado de baja)"
       },
       "personalize": {
         "title": "Personalizar variables",
@@ -1125,6 +1143,11 @@
         "matchWordHint": "Coincide con la palabra clave solo como palabra independiente, así \"k\" ya no se activa con \"thanks\". Ideal para palabras clave cortas en idiomas con espacios; usa Contiene para idiomas que se escriben sin espacios.",
         "matchExact": "Exacta",
         "closeConversationHint": "Cambia el estado de la conversación a \"cerrada\". No requiere configuración."
+      },
+      "skipOptedOut": {
+        "label": "Omitir contactos dados de baja",
+        "description": "Los contactos que se dieron de baja de WhatsApp nunca reciben los pasos de esta automatización.",
+        "aria": "Omitir contactos dados de baja"
       }
     }
   },
@@ -1726,7 +1749,8 @@
       "fields": "Campos y etiquetas",
       "deals": "Negocios y moneda",
       "members": "Miembros del equipo",
-      "api": "Claves de API"
+      "api": "Claves de API",
+      "opt-management": "Suscripción / baja"
     },
     "groups": {
       "account": "Cuenta",
@@ -1940,6 +1964,64 @@
       "editDoc": "Editar",
       "deleteDoc": "Eliminar",
       "loading": "Cargando…"
+    },
+    "optManagement": {
+      "title": "Gestión de suscripción y baja",
+      "description": "Mantén el cumplimiento de WhatsApp: configura palabras clave, respuestas automáticas y consulta quién está suscrito o dado de baja.",
+      "summary": {
+        "title": "Estado de suscripción",
+        "description": "Cuántos de tus contactos están suscritos, dados de baja o en estado desconocido.",
+        "optedIn": "Suscritos",
+        "optedOut": "Dados de baja",
+        "unknown": "Desconocido"
+      },
+      "optInKeywords": {
+        "title": "Palabras clave de suscripción",
+        "description": "Cuando un cliente envía una de estas palabras, se marca como suscrito."
+      },
+      "optOutKeywords": {
+        "title": "Palabras clave de baja",
+        "description": "Cuando un cliente envía una de estas palabras, se marca como dado de baja y se excluye de futuros envíos y automatizaciones."
+      },
+      "optInResponse": {
+        "title": "Respuesta de suscripción",
+        "description": "Se envía automáticamente cuando un cliente se suscribe."
+      },
+      "optOutResponse": {
+        "title": "Respuesta de baja",
+        "description": "Se envía automáticamente cuando un cliente se da de baja."
+      },
+      "keywords": {
+        "placeholder": "p. ej. START",
+        "matchContains": "Contiene",
+        "matchExact": "Coincidencia exacta",
+        "add": "Añadir",
+        "empty": "Aún no hay palabras clave.",
+        "enable": "Activar",
+        "disable": "Desactivar",
+        "remove": "Eliminar",
+        "addFailed": "No se pudo añadir la palabra clave.",
+        "updateFailed": "No se pudo actualizar la palabra clave.",
+        "deleteFailed": "No se pudo eliminar la palabra clave.",
+        "maxOptOutReached": "Puedes tener como máximo {count} palabras clave de baja activadas. Desactiva una antes de añadir otra.",
+        "maxOptOutNote": "Hasta {count} palabras clave de baja activadas a la vez."
+      },
+      "responses": {
+        "messageType": "Mensaje",
+        "templateType": "Plantilla",
+        "messagePlaceholder": "El mensaje que se enviará de vuelta",
+        "selectTemplate": "Selecciona una plantilla",
+        "save": "Guardar",
+        "saved": "Respuesta guardada",
+        "saveFailed": "No se pudo guardar la respuesta."
+      },
+      "advanced": {
+        "title": "API y avanzado",
+        "description": "Configuración adicional para la API pública y el cumplimiento normativo.",
+        "apiOptOutLabel": "Permitir baja mediante la API",
+        "apiOptOutHint": "Las integraciones externas con el permiso contacts:write pueden dar de baja a un contacto mediante POST /api/v1/contacts/'{id}'/opt-out.",
+        "enforcementNote": "La exclusión de contactos dados de baja en envíos masivos y automatizaciones siempre está activa y no se puede desactivar."
+      }
     }
   },
   "SignupPage": {

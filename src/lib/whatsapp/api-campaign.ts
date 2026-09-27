@@ -105,6 +105,24 @@ export async function sendApiCampaignMessage(
     phone: input.to,
   });
 
+  // Hard, non-overridable compliance exclusion (migration 044) — same
+  // rule as the dashboard broadcast send route: an opted-out contact
+  // is never sent a campaign message, API caller or not.
+  const { data: contactRow, error: contactCheckError } = await db
+    .from('contacts')
+    .select('subscription_status')
+    .eq('id', contactId)
+    .maybeSingle();
+  if (contactCheckError) {
+    console.error('[api-campaign] opt-status lookup failed:', contactCheckError);
+  } else if (contactRow?.subscription_status === 'opted_out') {
+    throw new BroadcastError(
+      'recipient_opted_out',
+      'This contact has opted out of WhatsApp messaging',
+      409
+    );
+  }
+
   const { data: row, error: rowErr } = await db
     .from('broadcast_recipients')
     .insert({

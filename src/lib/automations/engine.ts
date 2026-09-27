@@ -105,8 +105,32 @@ export async function runAutomationsForTrigger(input: DispatchInput): Promise<vo
     }
     if (!automations || automations.length === 0) return
 
+    // Opt-out compliance (migration 044): when the contact has opted out
+    // of WhatsApp messaging and the automation's `skip_opted_out` toggle
+    // is on (the default), skip it entirely rather than running steps —
+    // most steps send a message, and this is the one central point that
+    // covers all of them without touching every step handler.
+    let contactOptedOut = false
+    if (input.contactId) {
+      const { data: contactRow } = await db
+        .from('contacts')
+        .select('subscription_status')
+        .eq('id', input.contactId)
+        .eq('account_id', input.accountId)
+        .maybeSingle()
+      contactOptedOut = contactRow?.subscription_status === 'opted_out'
+    }
+
     for (const automation of automations as Automation[]) {
       if (!triggerMatches(automation, input.context)) continue
+      if (contactOptedOut && automation.skip_opted_out !== false) {
+        console.info(
+          '[automations] skipping run — contact opted out:',
+          automation.id,
+          input.contactId,
+        )
+        continue
+      }
       try {
         await executeAutomation(automation, input)
       } catch (err) {
@@ -149,6 +173,23 @@ export async function resumePendingExecution(pending: {
     console.error('[automations] resume: missing automation', pending.automation_id, error)
     await markPending(pending.id, 'failed')
     return
+  }
+
+  // Same opt-out check as the initial dispatch — a contact can opt out
+  // WHILE a run is parked at a wait step, so re-check on resume rather
+  // than only at the moment the run started.
+  if (pending.contact_id && (automation as Automation).skip_opted_out !== false) {
+    const { data: contactRow } = await db
+      .from('contacts')
+      .select('subscription_status')
+      .eq('id', pending.contact_id)
+      .eq('account_id', (automation as Automation).account_id)
+      .maybeSingle()
+    if (contactRow?.subscription_status === 'opted_out') {
+      console.info('[automations] resume skipped — contact opted out:', pending.automation_id)
+      await markPending(pending.id, 'done')
+      return
+    }
   }
 
   try {
