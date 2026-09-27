@@ -306,7 +306,7 @@ export default function BroadcastsPage() {
             setShowApiCampaignDialog(true);
             return;
           }
-          router.push(`/broadcasts/new?mode=${mode}`);
+          router.push('/broadcasts/new');
         }}
       />
 
