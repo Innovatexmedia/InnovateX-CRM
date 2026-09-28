@@ -22,6 +22,7 @@ import {
   Plus,
   MessageSquareDashed,
   Zap,
+  AlertTriangle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { GatedButton } from "@/components/ui/gated-button";
@@ -112,6 +113,13 @@ interface MediaDraft {
 interface MessageComposerProps {
   conversationId: string;
   sessionExpired: boolean;
+  /** True when this conversation's contact has subscription_status =
+   *  'opted_out' (migration 044). Shown as a caution banner only — it
+   *  does NOT disable sending, since an opted-out contact can still be
+   *  mid-conversation with an agent (e.g. an existing support issue);
+   *  opt-out is enforced as a hard block only for bulk broadcasts and
+   *  automations, never for a human agent's one-to-one reply. */
+  contactOptedOut?: boolean;
   onSend: (text: string, replyToId?: string) => void;
   onSendMedia: (payload: SendMediaPayload) => void;
   onSendInteractive: (payload: InteractiveMessagePayload, replyToId?: string) => void;
@@ -134,6 +142,7 @@ const OPUS_ENCODER_PATH = "/opus/encoderWorker.min.js";
 export function MessageComposer({
   conversationId,
   sessionExpired,
+  contactOptedOut,
   onSend,
   onSendMedia,
   onSendInteractive,
@@ -544,6 +553,12 @@ export function MessageComposer({
             preview={replyTo.preview}
             onDismiss={onClearReply}
           />
+        </div>
+      )}
+      {contactOptedOut && (
+        <div className="mb-2 flex items-center gap-2 rounded-lg bg-rose-500/10 px-3 py-2">
+          <AlertTriangle className="h-3.5 w-3.5 shrink-0 text-rose-400" />
+          <p className="text-xs text-rose-400">{t("optedOutHint")}</p>
         </div>
       )}
       {sessionExpired && (

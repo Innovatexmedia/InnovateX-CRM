@@ -10,6 +10,7 @@ import {
   phoneVariants,
   isRecipientNotAllowedError,
 } from '@/lib/whatsapp/phone-utils'
+import { normalizeKey } from '@/lib/contacts/dedupe'
 import {
   checkRateLimit,
   rateLimitResponse,
@@ -160,11 +161,53 @@ export async function POST(request: Request) {
     }
     const templateRow = resolvedTemplate.row
 
+    // Hard, non-overridable compliance exclusion (migration 044): a
+    // contact who opted out of WhatsApp messaging is never sent a
+    // broadcast/campaign message, regardless of what audience the
+    // caller assembled client-side. Enforced here — the actual send
+    // point — rather than only in the audience-picker UI, since a
+    // scheduled broadcast, a stale client, or a direct API call could
+    // otherwise bypass a UI-only check. Matched on the normalized
+    // phone number (the same key `contacts.phone_normalized` uses) so
+    // formatting differences between the request and the stored
+    // contact never let an opted-out recipient slip through.
+    const normalizedToRecipient = new Map<string, NewRecipient>()
+    for (const recipient of recipients) {
+      const key = normalizeKey(recipient.phone)
+      if (key) normalizedToRecipient.set(key, recipient)
+    }
+    const optedOutKeys = new Set<string>()
+    if (normalizedToRecipient.size > 0) {
+      const { data: optedOutContacts, error: optOutError } = await supabase
+        .from('contacts')
+        .select('phone_normalized')
+        .eq('account_id', accountId)
+        .eq('subscription_status', 'opted_out')
+        .in('phone_normalized', [...normalizedToRecipient.keys()])
+      if (optOutError) {
+        console.error('[broadcast] opted-out lookup failed:', optOutError)
+      } else {
+        for (const row of optedOutContacts ?? []) {
+          if (row.phone_normalized) optedOutKeys.add(row.phone_normalized)
+        }
+      }
+    }
+
     const results: BroadcastResult[] = []
     let sentCount = 0
     let failedCount = 0
 
     for (const recipient of recipients) {
+      const normalizedPhone = normalizeKey(recipient.phone)
+      if (normalizedPhone && optedOutKeys.has(normalizedPhone)) {
+        results.push({
+          phone: recipient.phone,
+          status: 'failed',
+          error: 'Contact has opted out of WhatsApp messaging',
+        })
+        failedCount++
+        continue
+      }
       const sanitized = sanitizePhoneForMeta(recipient.phone)
 
       if (!isValidE164(sanitized)) {

@@ -6,6 +6,7 @@ const h = vi.hoisted(() => ({
   dispatchInboundToFlows: vi.fn(),
   dispatchInboundToAiReply: vi.fn(),
   dispatchWebhookEvent: vi.fn(),
+  applyOptKeywordMatch: vi.fn(async () => ({ matched: false })),
   state: {
     // Result the message upsert's .select() resolves to. A genuine insert
     // returns the row; a replayed delivery conflicts and returns [].
@@ -278,6 +279,9 @@ vi.mock('@/lib/ai/auto-reply', () => ({
 vi.mock('@/lib/webhooks/deliver', () => ({
   dispatchWebhookEvent: h.dispatchWebhookEvent,
 }))
+vi.mock('@/lib/opt-management/keyword-match', () => ({
+  applyOptKeywordMatch: h.applyOptKeywordMatch,
+}))
 
 import { POST } from './route'
 import { getMediaUrl, downloadMedia } from '@/lib/whatsapp/meta-api'
@@ -405,6 +409,7 @@ beforeEach(() => {
       }, 0)
     })
   })
+  h.applyOptKeywordMatch.mockResolvedValue({ matched: false })
 })
 
 describe('inbound webhook: idempotent insert (#367)', () => {
@@ -437,6 +442,30 @@ describe('inbound webhook: idempotent insert (#367)', () => {
     expect(h.runAutomationsForTrigger).not.toHaveBeenCalled()
     expect(h.dispatchInboundToAiReply).not.toHaveBeenCalled()
     expect(h.dispatchWebhookEvent).not.toHaveBeenCalled()
+  })
+})
+
+describe('inbound webhook: opt-in/opt-out keyword matching (migration 044)', () => {
+  it('checks a genuine inbound text message against opt keywords', async () => {
+    await runWebhook({ ...TEXT_MESSAGE, text: { body: 'STOP' } })
+
+    expect(h.applyOptKeywordMatch).toHaveBeenCalledTimes(1)
+    expect(h.applyOptKeywordMatch).toHaveBeenCalledWith(
+      expect.objectContaining({
+        accountId: 'acc-1',
+        contactId: 'contact-1',
+        conversationId: 'conv-1',
+        text: 'STOP',
+      }),
+    )
+  })
+
+  it('does not check a replayed delivery a second time', async () => {
+    h.state.messageUpsertResult = []
+
+    await runWebhook({ ...TEXT_MESSAGE, text: { body: 'STOP' } })
+
+    expect(h.applyOptKeywordMatch).not.toHaveBeenCalled()
   })
 })
 

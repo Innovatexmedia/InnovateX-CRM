@@ -22,6 +22,7 @@ import {
   handleTemplateWebhookChange,
   isTemplateWebhookField,
 } from '@/lib/whatsapp/template-webhook'
+import { applyOptKeywordMatch } from '@/lib/opt-management/keyword-match'
 
 // The `after()` callback in POST runs within this route's max duration.
 // Inbound processing can fan out to per-media Meta verification calls, so
@@ -826,6 +827,21 @@ async function processMessage(
     )
     return
   }
+
+  // Opt-in / opt-out keyword matching (migration 044). Checked on every
+  // genuine (non-replay) inbound message — text against `opt_keywords`,
+  // or an interactive tap against `triggers_opt_in` quick replies — and,
+  // on a match, updates the contact's subscription_status and sends the
+  // account's configured auto-response. Additive and best-effort: never
+  // throws, never blocks the rest of this function.
+  await applyOptKeywordMatch({
+    db: supabaseAdmin(),
+    accountId,
+    contactId: contactRecord.id,
+    conversationId: conversation.id,
+    text: contentText,
+    interactiveReplyId,
+  })
 
   // Update conversation. The unread bump is done DB-side (migration 037's
   // bump_conversation_on_inbound) rather than as a read-modify-write of the

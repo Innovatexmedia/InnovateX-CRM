@@ -36,11 +36,49 @@ import {
   XCircle,
   AlertTriangle,
   Tag,
+  Download,
 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 
 const DEFAULT_TAG_COLOR = '#3b82f6';
 const PREVIEW_LIMIT = 5;
+
+/**
+ * Sample CSV offered from the import modal — mirrors exactly what
+ * `parseContactCsv` reads (phone, name, email, company, tags). Kept
+ * in sync by hand since there's no dynamic column-mapping step; if a
+ * column is ever added to the parser, add it here too.
+ */
+const SAMPLE_CSV_ROWS: string[][] = [
+  ['phone', 'name', 'email', 'company', 'tags'],
+  ['+919876543210', 'Riya Sharma', 'riya@example.com', 'Acme Co', 'Warm Lead;Instagram'],
+  ['+14155550123', 'John Miller', '', 'Globex Inc', 'Cold Lead'],
+  ['+447911123456', 'Amara Okafor', 'amara@example.com', '', ''],
+];
+
+function escapeCsvField(v: string): string {
+  return `"${v.replace(/"/g, '""')}"`;
+}
+
+function buildSampleCsv(): string {
+  return SAMPLE_CSV_ROWS.map((row) => row.map(escapeCsvField).join(',')).join(
+    '\n'
+  );
+}
+
+function downloadSampleCsv() {
+  const blob = new Blob([buildSampleCsv()], {
+    type: 'text/csv;charset=utf-8;',
+  });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'contacts-sample.csv';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
 
 function truncateFilename(name: string, max = 48): string {
   if (name.length <= max) return name;
@@ -500,6 +538,15 @@ export function ImportModal({
             onChange={handleFileChange}
             className="hidden"
           />
+
+          <button
+            type="button"
+            onClick={downloadSampleCsv}
+            className="text-primary hover:text-primary/80 mx-auto flex items-center gap-1.5 text-xs font-medium"
+          >
+            <Download className="size-3.5" />
+            {t('downloadSample')}
+          </button>
         </div>
 
         <div className="min-h-0 flex-1 overflow-y-auto px-6 py-4">

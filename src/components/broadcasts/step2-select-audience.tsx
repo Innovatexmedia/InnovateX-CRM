@@ -94,6 +94,10 @@ export function Step2SelectAudience({
   const [loadingFields, setLoadingFields] = useState(false);
   const [estimatedCount, setEstimatedCount] = useState<number | null>(null);
   const [loadingCount, setLoadingCount] = useState(false);
+  // Compliance note (migration 044) — opted-out contacts are always
+  // excluded server-side regardless of audience type; surfaced here so
+  // the count the user sees matches what will actually send.
+  const [optedOutExcluded, setOptedOutExcluded] = useState(0);
   // The picked file's name, shown back to the user. The parsed rows
   // themselves live on `audience.csvContacts` (owned by the wizard) so
   // they survive stepping forward and back.
@@ -180,10 +184,14 @@ export function Step2SelectAudience({
         audience.csvContacts &&
         audience.csvContacts.length > 0
       ) {
+        // CSV rows are synthetic (not yet contacts), so the opted-out
+        // exclusion doesn't apply until they're upserted at send time.
+        setOptedOutExcluded(0);
         setEstimatedCount(audience.csvContacts.length);
         return;
       } else {
         // Partially-configured audience — wait for the user to finish.
+        setOptedOutExcluded(0);
         setEstimatedCount(null);
         return;
       }
@@ -198,18 +206,34 @@ export function Step2SelectAudience({
         excludeSet = new Set((excludeRows ?? []).map((r) => r.contact_id));
       }
 
+      // Opted-out contacts are a hard, non-overridable exclusion
+      // (migration 044), applied server-side regardless of audience type.
+      // Fetch the ids here too so the estimate — and the "excluded"
+      // note — matches what will actually send.
+      const { data: optedOutRows } = await supabase
+        .from('contacts')
+        .select('id')
+        .eq('subscription_status', 'opted_out');
+      const optedOutSet = new Set((optedOutRows ?? []).map((r) => r.id));
+
       if (baseIds) {
         const effective = [...baseIds].filter(
-          (id) => !excludeSet?.has(id),
+          (id) => !excludeSet?.has(id) && !optedOutSet.has(id),
         );
+        const optedOutInBase = [...baseIds].filter(
+          (id) => !excludeSet?.has(id) && optedOutSet.has(id),
+        ).length;
+        setOptedOutExcluded(optedOutInBase);
         setEstimatedCount(effective.length);
       } else {
-        // "All" — fetch the total, then subtract exclude set if any.
+        // "All" — fetch the total, then subtract exclude set + opted-out.
         const { count } = await supabase
           .from('contacts')
           .select('*', { count: 'exact', head: true });
         const total = count ?? 0;
-        setEstimatedCount(excludeSet ? Math.max(0, total - excludeSet.size) : total);
+        const excludedByTag = excludeSet?.size ?? 0;
+        setOptedOutExcluded(optedOutSet.size);
+        setEstimatedCount(Math.max(0, total - excludedByTag - optedOutSet.size));
       }
     } finally {
       setLoadingCount(false);
@@ -525,12 +549,19 @@ export function Step2SelectAudience({
             <span className="text-xs text-muted-foreground">{t('selectAudience.calculating')}</span>
           </div>
         ) : estimatedCount !== null ? (
-          <div className="flex items-center gap-2">
-            <Users className="h-4 w-4 text-primary" />
-            <span className="text-sm text-foreground">
-              {estimatedCount.toLocaleString()}
-            </span>
-            <span className="text-xs text-muted-foreground">estimated recipients</span>
+          <div>
+            <div className="flex items-center gap-2">
+              <Users className="h-4 w-4 text-primary" />
+              <span className="text-sm text-foreground">
+                {estimatedCount.toLocaleString()}
+              </span>
+              <span className="text-xs text-muted-foreground">estimated recipients</span>
+            </div>
+            {optedOutExcluded > 0 && (
+              <p className="mt-1 text-xs text-muted-foreground">
+                {t('selectAudience.optedOutExcluded', { count: optedOutExcluded })}
+              </p>
+            )}
           </div>
         ) : (
           <p className="text-xs text-muted-foreground">

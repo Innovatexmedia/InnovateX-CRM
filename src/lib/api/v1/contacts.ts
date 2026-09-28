@@ -25,6 +25,8 @@ export interface ApiContact {
   company: string | null;
   avatar_url: string | null;
   tags: { id: string; name: string; color: string }[];
+  /** WhatsApp opt-in/opt-out compliance state (migration 044). */
+  subscription_status: 'opted_in' | 'opted_out' | 'unknown';
   created_at: string;
   updated_at: string;
 }
@@ -55,6 +57,8 @@ export function serializeContact(row: Record<string, unknown>): ApiContact {
       .map((j) => j.tags)
       .filter((t): t is NonNullable<RawTagJoin['tags']> => t != null)
       .map((t) => ({ id: t.id, name: t.name, color: t.color })),
+    subscription_status:
+      (row.subscription_status as 'opted_in' | 'opted_out' | 'unknown' | undefined) ?? 'unknown',
     created_at: row.created_at as string,
     updated_at: row.updated_at as string,
   };

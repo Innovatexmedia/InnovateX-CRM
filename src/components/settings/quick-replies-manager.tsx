@@ -31,6 +31,7 @@ interface DraftState {
   kind: QuickReplyKind;
   content_text: string;
   interactive_payload: InteractiveMessagePayload;
+  triggers_opt_in: boolean;
 }
 
 function emptyDraft(): DraftState {
@@ -39,6 +40,7 @@ function emptyDraft(): DraftState {
     kind: "text",
     content_text: "",
     interactive_payload: blankButtonsPayload(),
+    triggers_opt_in: false,
   };
 }
 
@@ -72,6 +74,7 @@ export function QuickRepliesManager() {
       content_text: qr.content_text ?? "",
       interactive_payload:
         qr.interactive_payload ?? blankButtonsPayload(),
+      triggers_opt_in: qr.triggers_opt_in ?? false,
     });
 
   const save = useCallback(async () => {
@@ -82,8 +85,13 @@ export function QuickRepliesManager() {
     }
     const payload =
       draft.kind === "interactive"
-        ? { title: draft.title, kind: "interactive", interactive_payload: draft.interactive_payload }
-        : { title: draft.title, kind: "text", content_text: draft.content_text };
+        ? {
+            title: draft.title,
+            kind: "interactive",
+            interactive_payload: draft.interactive_payload,
+            triggers_opt_in: draft.triggers_opt_in,
+          }
+        : { title: draft.title, kind: "text", content_text: draft.content_text, triggers_opt_in: false };
 
     setSaving(true);
     try {
@@ -218,10 +226,28 @@ export function QuickRepliesManager() {
                   className="min-h-28 bg-muted text-foreground"
                 />
               ) : (
-                <InteractiveBuilder
-                  value={draft.interactive_payload}
-                  onChange={(p) => setDraft({ ...draft, interactive_payload: p })}
-                />
+                <>
+                  <InteractiveBuilder
+                    value={draft.interactive_payload}
+                    onChange={(p) => setDraft({ ...draft, interactive_payload: p })}
+                  />
+                  <label className="flex items-center gap-2 text-sm text-foreground">
+                    <input
+                      type="checkbox"
+                      checked={draft.triggers_opt_in}
+                      onChange={(e) =>
+                        setDraft({ ...draft, triggers_opt_in: e.target.checked })
+                      }
+                      className="size-4 rounded border-border"
+                    />
+                    Use as opt-in trigger
+                  </label>
+                  <p className="text-xs text-muted-foreground">
+                    A customer tapping a button on this quick reply opts them
+                    in to WhatsApp messaging, the same as matching an opt-in
+                    keyword.
+                  </p>
+                </>
               )}
             </div>
           )}
