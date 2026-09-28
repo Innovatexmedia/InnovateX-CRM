@@ -192,6 +192,7 @@
       "noCustomerMessages": "Nenhuma mensagem do cliente"
     },
     "composer": {
+      "optedOutHint": "Este contato optou por não receber mensagens. Você ainda pode responder, mas evite enviar conteúdo de marketing.",
       "draftHint": "Toque em ✨ para redigir uma resposta com IA — você pode editá-la antes de enviar",
       "sessionExpiredHint": "A sessão de 24 horas expirou. Use um modelo para retomar o contato.",
       "templates": "Modelos",
@@ -339,7 +340,8 @@
         "email": "E-mail",
         "company": "Empresa",
         "tags": "Tags",
-        "createdAt": "Criado em"
+        "createdAt": "Criado em",
+        "subscription": "Assinatura"
       },
       "loading": "Carregando contatos...",
       "noContactsMatch": "Nenhum contato corresponde aos seus filtros.",
@@ -360,7 +362,12 @@
       "toastFailedDelete": "Falha ao excluir o contato",
       "toastDeleted": "Contato excluído",
       "toastBulkFailedDelete": "Falha ao excluir os contatos",
-      "toastBulkDeleted": "{count} contatos excluídos"
+      "toastBulkDeleted": "{count} contatos excluídos",
+      "filterBySubscription": "Filtrar por status de assinatura",
+      "subscriptionFilterAll": "Todas as assinaturas",
+      "subscriptionOptedIn": "Optou por participar",
+      "subscriptionOptedOut": "Optou por sair",
+      "subscriptionUnknown": "Desconhecido"
     },
     "form": {
       "addTitle": "Adicionar contato",
@@ -457,12 +464,23 @@
       "toastCustomFieldsSaved": "Campos personalizados salvos",
       "toastCustomFieldsFailed": "Falha ao salvar os campos personalizados",
       "toastTemplateSent": "Modelo \"{name}\" enviado",
-      "toastTemplateFailed": "Falha ao enviar o modelo: {reason}"
+      "toastTemplateFailed": "Falha ao enviar o modelo: {reason}",
+      "subscription": {
+        "optedIn": "Optou por participar",
+        "optedOut": "Optou por sair",
+        "unknown": "Desconhecido",
+        "optInAction": "Inscrever",
+        "optOutAction": "Cancelar inscrição"
+      },
+      "toastOptStatusFailed": "Falha ao atualizar o status de assinatura",
+      "toastOptedIn": "Contato inscrito",
+      "toastOptedOut": "Contato removido da lista"
     },
     "importModal": {
       "title": "Importar contatos",
       "desc": "Envie um CSV com uma coluna <phoneCode>phone</phoneCode> obrigatória. Opcionais: <nameCode>name</nameCode>, <emailCode>email</emailCode>, <companyCode>company</companyCode>, <tagsCode>tags</tagsCode> (separadas por vírgula; coloque células com várias tags entre aspas).",
       "uploadDropzone": "Clique para escolher um arquivo CSV",
+      "downloadSample": "Baixar CSV de exemplo",
       "uploadHint": ".csv até o limite do seu navegador",
       "rowsReady": "{count} linha pronta",
       "rowsReady_plural": "{count} linhas prontas",
@@ -784,7 +802,8 @@
         "errorCsvParse": "Não foi possível ler o arquivo CSV.",
         "errorCsvMissingPhone": "O CSV deve ter uma coluna 'phone'.",
         "audienceSummary": "Resumo do público",
-        "calculating": "Calculando…"
+        "calculating": "Calculando…",
+        "optedOutExcluded": "{count} contato(s) excluído(s) (optaram por sair)"
       },
       "personalize": {
         "title": "Personalizar variáveis",
@@ -1125,6 +1144,11 @@
         "matchWordHint": "Corresponde à palavra-chave apenas como palavra isolada, então \"k\" não dispara mais em \"thanks\". Ideal para palavras-chave curtas em idiomas com espaços; use Contém para idiomas escritos sem espaços.",
         "matchExact": "Exata",
         "closeConversationHint": "Define o status da conversa como \"fechada\". Nenhuma configuração necessária."
+      },
+      "skipOptedOut": {
+        "label": "Ignorar contatos que optaram por sair",
+        "description": "Contatos que optaram por sair do WhatsApp nunca recebem as etapas desta automação.",
+        "aria": "Ignorar contatos que optaram por sair"
       }
     }
   },
@@ -1726,7 +1750,8 @@
       "fields": "Campos e tags",
       "deals": "Negócios e moeda",
       "members": "Membros da equipe",
-      "api": "Chaves de API"
+      "api": "Chaves de API",
+      "opt-management": "Opt-in / opt-out"
     },
     "groups": {
       "account": "Conta",
@@ -1874,7 +1899,7 @@
     },
     "aiConfig": {
       "title": "Configuração do agente",
-      "description": "Use sua própria chave da OpenAI ou da Anthropic. O InnovateX CRM chama o provedor diretamente com a sua chave — sem taxas de IA por usuário, e seus dados continuam seus. Isso alimenta as respostas redigidas por IA na caixa de entrada, o bot de resposta automática e o Playground.",
+      "description": "Use sua própria chave da OpenAI, da Anthropic ou do Google Gemini. O InnovateX CRM chama o provedor diretamente com a sua chave — sem taxas de IA por usuário, e seus dados continuam seus. Isso alimenta as respostas redigidas por IA na caixa de entrada, o bot de resposta automática e o Playground.",
       "adminOnlyConfig": "Somente administradores e proprietários podem alterar a configuração de IA.",
       "loadFailed": "Falha ao carregar a configuração de IA",
       "providerAndKey": "Provedor e chave",
@@ -1940,6 +1965,64 @@
       "editDoc": "Editar",
       "deleteDoc": "Excluir",
       "loading": "Carregando…"
+    },
+    "optManagement": {
+      "title": "Gestão de opt-in / opt-out",
+      "description": "Mantenha a conformidade do WhatsApp: configure palavras-chave, respostas automáticas e veja quem optou por participar ou sair.",
+      "summary": {
+        "title": "Status de assinatura",
+        "description": "Quantos dos seus contatos optaram por participar, por sair ou estão em status desconhecido.",
+        "optedIn": "Optaram por participar",
+        "optedOut": "Optaram por sair",
+        "unknown": "Desconhecido"
+      },
+      "optInKeywords": {
+        "title": "Palavras-chave de opt-in",
+        "description": "Quando um cliente envia uma dessas palavras, ele é marcado como inscrito."
+      },
+      "optOutKeywords": {
+        "title": "Palavras-chave de opt-out",
+        "description": "Quando um cliente envia uma dessas palavras, ele é marcado como opt-out e excluído de futuras campanhas e automações."
+      },
+      "optInResponse": {
+        "title": "Resposta de opt-in",
+        "description": "Enviada automaticamente quando um cliente opta por participar."
+      },
+      "optOutResponse": {
+        "title": "Resposta de opt-out",
+        "description": "Enviada automaticamente quando um cliente opta por sair."
+      },
+      "keywords": {
+        "placeholder": "ex.: START",
+        "matchContains": "Contém",
+        "matchExact": "Correspondência exata",
+        "add": "Adicionar",
+        "empty": "Ainda não há palavras-chave.",
+        "enable": "Ativar",
+        "disable": "Desativar",
+        "remove": "Remover",
+        "addFailed": "Não foi possível adicionar a palavra-chave.",
+        "updateFailed": "Não foi possível atualizar a palavra-chave.",
+        "deleteFailed": "Não foi possível excluir a palavra-chave.",
+        "maxOptOutReached": "Você pode ter no máximo {count} palavras-chave de opt-out ativadas. Desative uma antes de adicionar outra.",
+        "maxOptOutNote": "Até {count} palavras-chave de opt-out ativadas por vez."
+      },
+      "responses": {
+        "messageType": "Mensagem",
+        "templateType": "Modelo",
+        "messagePlaceholder": "A mensagem a ser enviada de volta",
+        "selectTemplate": "Selecione um modelo",
+        "save": "Salvar",
+        "saved": "Resposta salva",
+        "saveFailed": "Não foi possível salvar a resposta."
+      },
+      "advanced": {
+        "title": "API e avançado",
+        "description": "Configurações adicionais para a API pública e para a aplicação de conformidade.",
+        "apiOptOutLabel": "Permitir opt-out via API",
+        "apiOptOutHint": "Integrações externas com o escopo contacts:write podem cancelar a inscrição de um contato via POST /api/v1/contacts/'{id}'/opt-out.",
+        "enforcementNote": "A exclusão de contatos que optaram por sair em campanhas e automações está sempre ativa e não pode ser desativada."
+      }
     }
   },
   "SignupPage": {
