@@ -24,6 +24,14 @@ import crypto from 'node:crypto'
  *   to accept any of them. A request is valid when its signature
  *   matches ANY configured secret; each candidate is compared in
  *   constant time. See docs/multi-waba.md.
+ *
+ *   On top of the env-configured list, a caller may pass `extraSecrets`
+ *   — per-account `whatsapp_config.app_secret` values (migration 046).
+ *   This lets a new client whose WABA lives under its own Meta App
+ *   connect purely from Settings → WhatsApp connection, with no env
+ *   var edit or redeploy: they paste their App Secret into the form,
+ *   the webhook route decrypts every configured one and passes them
+ *   here alongside `META_APP_SECRET`.
  */
 
 /**
@@ -54,13 +62,15 @@ function signatureMatches(rawBody: string, signatureHeader: string, secret: stri
 export function verifyMetaWebhookSignature(
   rawBody: string,
   signatureHeader: string | null,
+  extraSecrets: string[] = [],
 ): boolean {
-  const secrets = parseAppSecrets(process.env.META_APP_SECRET)
+  const secrets = [...parseAppSecrets(process.env.META_APP_SECRET), ...extraSecrets]
   if (secrets.length === 0) {
     console.error(
-      '[webhook] META_APP_SECRET is not set — rejecting request. ' +
-        'Configure the env var (Meta → App Settings → Basic → App Secret) ' +
-        'to enable signature verification.',
+      '[webhook] No app secret configured — rejecting request. ' +
+        'Set META_APP_SECRET (Meta → App Settings → Basic → App Secret), ' +
+        'or have at least one account save its own App Secret in ' +
+        'Settings → WhatsApp connection, to enable signature verification.',
     )
     return false
   }

@@ -90,6 +90,41 @@ describe("verifyMetaWebhookSignature", () => {
     });
   });
 
+  describe("per-account extra secrets (migration 046)", () => {
+    it("accepts a signature matching an extra (per-account) secret", () => {
+      const body = '{"entry":[{"id":"client-own-app"}]}';
+      const CLIENT_SECRET = "clients-own-app-secret";
+      expect(
+        verifyMetaWebhookSignature(body, signedHeader(body, CLIENT_SECRET), [
+          CLIENT_SECRET,
+        ]),
+      ).toBe(true);
+    });
+
+    it("still accepts the env-configured secret when extras are passed", () => {
+      const body = "{}";
+      expect(
+        verifyMetaWebhookSignature(body, signedHeader(body), [
+          "some-other-accounts-secret",
+        ]),
+      ).toBe(true);
+    });
+
+    it("rejects a signature matching neither the env secret nor an extra", () => {
+      const body = "{}";
+      expect(
+        verifyMetaWebhookSignature(body, signedHeader(body, "unknown"), [
+          "some-other-accounts-secret",
+        ]),
+      ).toBe(false);
+    });
+
+    it("defaults to no extras when the argument is omitted", () => {
+      const body = "{}";
+      expect(verifyMetaWebhookSignature(body, signedHeader(body))).toBe(true);
+    });
+  });
+
   describe("parseAppSecrets", () => {
     it("splits on commas, trims, and drops empties", () => {
       expect(parseAppSecrets(" a , b,,c ,")).toEqual(["a", "b", "c"]);

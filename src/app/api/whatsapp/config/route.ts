@@ -122,7 +122,7 @@ export async function GET() {
 
     const { data: config, error: configError } = await supabase
       .from('whatsapp_config')
-      .select('phone_number_id, waba_id, access_token, status')
+      .select('phone_number_id, waba_id, access_token, status, app_id')
       .eq('account_id', accountId)
       .maybeSingle()
 
@@ -202,7 +202,10 @@ export async function GET() {
     if (config.waba_id) {
       try {
         const subs = await getSubscribedApps({ wabaId: config.waba_id, accessToken })
-        const state = appSubscriptionState(subs, process.env.META_APP_ID)
+        // Compare against this account's own Meta App ID when it has
+        // one (its WABA lives under its own app, migration 046),
+        // otherwise the deployment-wide app.
+        const state = appSubscriptionState(subs, config.app_id || process.env.META_APP_ID)
         wabaSubscription = {
           checked: true,
           subscribed: state.subscribed,
@@ -266,7 +269,7 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json()
-    const { phone_number_id, waba_id, access_token, verify_token, pin } = body
+    const { phone_number_id, waba_id, access_token, verify_token, pin, app_id, app_secret } = body
 
     if (!access_token || !phone_number_id) {
       return NextResponse.json(
@@ -295,6 +298,38 @@ export async function POST(request: Request) {
           error:
             'WhatsApp Business Account ID must contain only digits — copy it from Meta → WhatsApp → API Setup.',
           field: 'waba_id',
+        },
+        { status: 400 }
+      )
+    }
+    // Both optional — only needed when this account's WABA lives under
+    // its own Meta App rather than InnovateX's (migration 046, see
+    // docs/multi-waba.md "Setup B"). Most accounts leave these blank.
+    if (app_id !== undefined && app_id !== null && app_id !== '' && !isNumericMetaId(app_id)) {
+      return NextResponse.json(
+        {
+          error:
+            'Meta App ID must contain only digits — copy it from your Meta App → App Settings → Basic. Leave blank if this account uses InnovateX’s Meta App.',
+          field: 'app_id',
+        },
+        { status: 400 }
+      )
+    }
+    if (app_secret !== undefined && app_secret !== null && typeof app_secret !== 'string') {
+      // Guards the encryption step below, which otherwise treats any
+      // non-string, non-null value the same as an empty string (i.e.
+      // silently clears a saved secret) — reject it explicitly instead.
+      return NextResponse.json(
+        { error: 'app_secret must be a string.', field: 'app_secret' },
+        { status: 400 }
+      )
+    }
+    if (typeof app_secret === 'string' && app_secret.trim().length > 0 && app_secret.trim().length < 20) {
+      return NextResponse.json(
+        {
+          error:
+            'Meta App Secret looks too short — copy it from your Meta App → App Settings → Basic (it is normally a 32-character value).',
+          field: 'app_secret',
         },
         { status: 400 }
       )
@@ -386,12 +421,23 @@ export async function POST(request: Request) {
       }
     }
 
-    // Encrypt sensitive tokens before storing
+    // Encrypt sensitive tokens before storing.
+    //
+    // `encryptedAppSecret` is left `undefined` when the client didn't
+    // send an `app_secret` key at all — that means "field wasn't
+    // edited this save", so the column is left untouched below rather
+    // than cleared. Sending an explicit empty string means the user
+    // deliberately cleared a previously-saved one.
     let encryptedAccessToken: string
     let encryptedVerifyToken: string | null
+    let encryptedAppSecret: string | null | undefined
     try {
       encryptedAccessToken = encrypt(access_token)
       encryptedVerifyToken = verify_token ? encrypt(verify_token) : null
+      if (app_secret !== undefined) {
+        const trimmed = typeof app_secret === 'string' ? app_secret.trim() : ''
+        encryptedAppSecret = trimmed ? encrypt(trimmed) : null
+      }
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Unknown encryption error'
       console.error('Encryption failed:', message)
@@ -493,7 +539,7 @@ export async function POST(request: Request) {
     // Persist everything in one shot. If /register failed we still
     // store the credentials and the error so the UI can guide the
     // user through a retry.
-    const baseRow = {
+    const baseRow: Record<string, unknown> = {
       phone_number_id,
       waba_id: waba_id || null,
       access_token: encryptedAccessToken,
@@ -504,6 +550,19 @@ export async function POST(request: Request) {
       subscribed_apps_at: subscribedAppsAt ?? null,
       last_registration_error: registrationError,
       updated_at: new Date().toISOString(),
+    }
+
+    // app_id is plain text, not secret — safe to always sync from the
+    // form (clearing it when the user empties the field is fine).
+    if (app_id !== undefined) {
+      baseRow.app_id = app_id ? String(app_id).trim() : null
+    }
+    // app_secret is only touched when the client actually sent it this
+    // save (see the encryption block above) — otherwise a save that
+    // doesn't mention it (e.g. just rotating the access token) must
+    // not silently wipe an already-configured App Secret.
+    if (encryptedAppSecret !== undefined) {
+      baseRow.app_secret = encryptedAppSecret
     }
 
     if (existing) {

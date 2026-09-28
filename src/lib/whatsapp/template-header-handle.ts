@@ -26,6 +26,14 @@ const UNREACHABLE_MESSAGE =
 export async function ensureMediaHeaderHandle(
   payload: TemplatePayload,
   accessToken: string,
+  /**
+   * The account's own Meta App ID (`whatsapp_config.app_id`, migration
+   * 046), when its WABA lives under its own Meta App rather than
+   * InnovateX's. Falls back to the deployment-wide `META_APP_ID` when
+   * unset — the common case, where every account shares InnovateX's
+   * app.
+   */
+  accountAppId?: string | null,
 ): Promise<void> {
   const kind = payload.header_type
   if (!isMediaHeaderKind(kind)) return
@@ -34,10 +42,10 @@ export async function ensureMediaHeaderHandle(
 
   const spec = MEDIA_HEADER_SPECS[kind]
 
-  const appId = process.env.META_APP_ID
+  const appId = accountAppId || process.env.META_APP_ID
   if (!appId) {
     throw new Error(
-      'Media-header templates need META_APP_ID set (used for Meta’s Resumable Upload). Add it to your environment, or remove the media header.',
+      'Media-header templates need a Meta App ID configured (used for Meta’s Resumable Upload). Set META_APP_ID in your environment, or add this account’s own App ID in Settings → WhatsApp connection — or remove the media header.',
     )
   }
 

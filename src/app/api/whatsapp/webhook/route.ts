@@ -224,7 +224,39 @@ export async function POST(request: Request) {
   const rawBody = await request.text()
   const signature = request.headers.get('x-hub-signature-256')
 
-  if (!verifyMetaWebhookSignature(rawBody, signature)) {
+  // Accounts whose WABA lives under their own Meta App (not
+  // InnovateX's) save their own App Secret in Settings → WhatsApp
+  // connection instead of us editing META_APP_SECRET + redeploying for
+  // every such client (migration 046). Collect every configured one so
+  // the signature check below accepts a delivery signed by any of them.
+  let accountSecrets: string[] = []
+  try {
+    // Plain select, filtered client-side below — mirrors the GET
+    // handler's `select('id, verify_token')` above, which also reads
+    // every row rather than filtering server-side.
+    const { data: secretRows, error: secretsError } = await supabaseAdmin()
+      .from('whatsapp_config')
+      .select('app_secret')
+    if (secretsError) {
+      console.error('[webhook] Failed to load per-account app secrets:', secretsError)
+    } else {
+      accountSecrets = (secretRows ?? [])
+        .map((row: { app_secret: string | null }) => {
+          if (!row.app_secret) return null
+          try {
+            return decrypt(row.app_secret)
+          } catch (err) {
+            console.error('[webhook] Failed to decrypt a per-account app_secret:', err)
+            return null
+          }
+        })
+        .filter((s: string | null): s is string => !!s)
+    }
+  } catch (err) {
+    console.error('[webhook] Error loading per-account app secrets:', err)
+  }
+
+  if (!verifyMetaWebhookSignature(rawBody, signature, accountSecrets)) {
     // 401 (not 200) — we want Meta's delivery dashboard to show failures
     // loudly if a misconfiguration causes signatures to stop matching,
     // rather than silently eating events.

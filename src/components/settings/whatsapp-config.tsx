@@ -104,6 +104,14 @@ export function WhatsAppConfig() {
   const [verifyToken, setVerifyToken] = useState('');
   const [pin, setPin] = useState('');
   const [tokenEdited, setTokenEdited] = useState(false);
+  // Only needed when this account's WABA lives under its own Meta App
+  // rather than InnovateX's — migration 046, see docs/multi-waba.md
+  // "Setup B". Left blank, everything falls back to the deployment's
+  // META_APP_ID / META_APP_SECRET as before.
+  const [appId, setAppId] = useState('');
+  const [appSecret, setAppSecret] = useState('');
+  const [appSecretEdited, setAppSecretEdited] = useState(false);
+  const [showAppSecret, setShowAppSecret] = useState(false);
 
   // Inbound-media mirror (issue #466). Unlike everything else on this
   // page it is NOT part of handleSave: that path insists on re-entering
@@ -166,6 +174,13 @@ export function WhatsAppConfig() {
         setVerifyToken('');
         setPin('');
         setTokenEdited(false);
+        // app_id is plain text, safe to show as-is. app_secret is
+        // encrypted and never decrypted for the client — show the same
+        // masked placeholder pattern as the access token when one is
+        // already saved, blank otherwise.
+        setAppId(data.app_id || '');
+        setAppSecret(data.app_secret ? MASKED_TOKEN : '');
+        setAppSecretEdited(false);
         // Undefined on a row read before migration 039 — treat that as
         // on, matching the webhook's own default.
         setMirrorMedia(data.mirror_inbound_media !== false);
@@ -177,6 +192,9 @@ export function WhatsAppConfig() {
         setVerifyToken('');
         setPin('');
         setTokenEdited(false);
+        setAppId('');
+        setAppSecret('');
+        setAppSecretEdited(false);
         setMirrorMedia(true);
       }
       // Clear any stale probe result when reloading the row.
@@ -277,6 +295,14 @@ export function WhatsAppConfig() {
       toast.error(t('accessTokenRequired'));
       return;
     }
+    if (appId.trim() && !META_ID_RE.test(appId.trim())) {
+      toast.error(t('appIdNotNumeric'));
+      return;
+    }
+    if (appSecretEdited && appSecret.trim() && appSecret.trim().length < 20) {
+      toast.error(t('appSecretTooShort'));
+      return;
+    }
 
     try {
       setSaving(true);
@@ -293,7 +319,20 @@ export function WhatsAppConfig() {
         // requires it on first save or when changing numbers; for a
         // simple token rotation, leaving it blank skips re-register.
         pin: pin.trim() || null,
+        // Plain text, not secret — always synced from the form so
+        // clearing the field clears the stored value too.
+        app_id: appId.trim() || null,
       };
+
+      // `app_secret` is only included when the field was actually
+      // touched this save — omitting the key tells the server to leave
+      // whatever's already stored alone, rather than wiping it every
+      // time the form is saved for an unrelated change (e.g. rotating
+      // the access token). Saving it cleared on purpose (edited, then
+      // emptied) sends an explicit '' so the server clears the column.
+      if (appSecretEdited && appSecret !== MASKED_TOKEN) {
+        payload.app_secret = appSecret.trim();
+      }
 
       if (tokenEdited && accessToken !== MASKED_TOKEN && accessToken.trim()) {
         payload.access_token = accessToken.trim();
@@ -821,6 +860,87 @@ export function WhatsAppConfig() {
                 <span dangerouslySetInnerHTML={{ __html: t('pinHint') }} />
               </p>
             </div>
+
+            <Accordion>
+              <AccordionItem className="border-border">
+                <AccordionTrigger className="text-muted-foreground hover:text-foreground hover:no-underline">
+                  {t('ownMetaAppTitle')}
+                </AccordionTrigger>
+                <AccordionContent className="space-y-4">
+                  <p className="text-xs text-muted-foreground leading-relaxed">
+                    {t('ownMetaAppHint')}
+                  </p>
+
+                  <div className="space-y-2">
+                    <Label className="text-muted-foreground">
+                      {t('appId')}
+                      <span className="ml-1 text-muted-foreground">{t('optional')}</span>
+                    </Label>
+                    <Input
+                      placeholder={t('appIdPlaceholder')}
+                      value={appId}
+                      onChange={(e) => setAppId(e.target.value)}
+                      className="bg-muted border-border text-foreground placeholder:text-muted-foreground"
+                    />
+                    <p className="text-xs text-muted-foreground">{t('appIdHint')}</p>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label className="text-muted-foreground">
+                      {t('appSecret')}
+                      <span className="ml-1 text-muted-foreground">{t('optional')}</span>
+                    </Label>
+                    <div className="relative">
+                      <Input
+                        type={showAppSecret ? 'text' : 'password'}
+                        placeholder={t('appSecretPlaceholder')}
+                        value={appSecret}
+                        onChange={(e) => {
+                          setAppSecret(e.target.value);
+                          setAppSecretEdited(true);
+                        }}
+                        onFocus={() => {
+                          // Clear the masked placeholder so the user can
+                          // type a new value — but this alone is NOT
+                          // treated as an edit (unlike the access token
+                          // above, where every save re-verifies with
+                          // Meta anyway). App Secret is optional and
+                          // saved with "blank this save = leave it
+                          // alone"; if focus-clearing counted as edited,
+                          // merely tabbing into this field and saving
+                          // for an unrelated reason would silently wipe
+                          // an already-configured secret. See onBlur.
+                          if (appSecret === MASKED_TOKEN) {
+                            setAppSecret('');
+                          }
+                        }}
+                        onBlur={() => {
+                          // Focused (clearing the mask) but never
+                          // actually typed anything, then left — put
+                          // the mask back rather than leaving an empty
+                          // field that would read as "clear it" on save.
+                          if (!appSecretEdited && appSecret === '' && config?.app_secret) {
+                            setAppSecret(MASKED_TOKEN);
+                          }
+                        }}
+                        className="bg-muted border-border text-foreground placeholder:text-muted-foreground pr-10"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowAppSecret(!showAppSecret)}
+                        className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                      >
+                        {showAppSecret ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+                      </button>
+                    </div>
+                    {config && !appSecretEdited && appSecret === MASKED_TOKEN && (
+                      <p className="text-xs text-muted-foreground">{t('tokenHidden')}</p>
+                    )}
+                    <p className="text-xs text-muted-foreground">{t('appSecretHint')}</p>
+                  </div>
+                </AccordionContent>
+              </AccordionItem>
+            </Accordion>
           </CardContent>
         </Card>
 

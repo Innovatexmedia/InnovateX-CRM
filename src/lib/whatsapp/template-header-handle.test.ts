@@ -75,6 +75,43 @@ describe('ensureMediaHeaderHandle', () => {
     await expect(ensureMediaHeaderHandle(p, 'tok')).rejects.toThrow(/META_APP_ID/);
   });
 
+  describe('per-account app id (migration 046)', () => {
+    it('uses the account-supplied app id even when META_APP_ID is unset', async () => {
+      vi.stubGlobal('fetch', vi.fn(async () => mediaResponse('image/jpeg', 2048)));
+      const p = payload();
+      await ensureMediaHeaderHandle(p, 'tok', 'accounts-own-app-id');
+      expect(uploadResumableMedia).toHaveBeenCalledOnce();
+      expect(uploadResumableMedia).toHaveBeenCalledWith(
+        expect.objectContaining({ appId: 'accounts-own-app-id' }),
+      );
+      expect(p.header_handle).toBe('HANDLE123');
+    });
+
+    it('prefers the account-supplied app id over META_APP_ID when both are set', async () => {
+      vi.stubEnv('META_APP_ID', 'platform-app');
+      vi.stubGlobal('fetch', vi.fn(async () => mediaResponse('image/jpeg', 2048)));
+      await ensureMediaHeaderHandle(payload(), 'tok', 'accounts-own-app-id');
+      expect(uploadResumableMedia).toHaveBeenCalledWith(
+        expect.objectContaining({ appId: 'accounts-own-app-id' }),
+      );
+    });
+
+    it('falls back to META_APP_ID when no account app id is given', async () => {
+      vi.stubEnv('META_APP_ID', 'platform-app');
+      vi.stubGlobal('fetch', vi.fn(async () => mediaResponse('image/jpeg', 2048)));
+      await ensureMediaHeaderHandle(payload(), 'tok');
+      expect(uploadResumableMedia).toHaveBeenCalledWith(
+        expect.objectContaining({ appId: 'platform-app' }),
+      );
+    });
+
+    it('still throws when neither the account app id nor META_APP_ID is set', async () => {
+      const p = payload();
+      await expect(ensureMediaHeaderHandle(p, 'tok', null)).rejects.toThrow(/Meta App ID/);
+      await expect(ensureMediaHeaderHandle(p, 'tok', '')).rejects.toThrow(/Meta App ID/);
+    });
+  });
+
   describe('image headers (unchanged from #230)', () => {
     it('derives + sets header_handle from a valid image URL', async () => {
       vi.stubEnv('META_APP_ID', 'app-1');

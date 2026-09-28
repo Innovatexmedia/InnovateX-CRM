@@ -324,6 +324,16 @@ export interface WhatsAppConfig {
    * inbound attachments expire. Migration 039.
    */
   mirror_inbound_media?: boolean;
+  /**
+   * Per-account Meta App ID / App Secret (migration 046). Optional —
+   * only set when this account's WABA lives under its own Meta App
+   * instead of the deployment-wide META_APP_ID/META_APP_SECRET. app_id
+   * is plain text; app_secret is stored encrypted and the GET route
+   * never returns its plaintext (presence-only, used by the UI to
+   * decide whether to show it as already-saved).
+   */
+  app_id?: string | null;
+  app_secret?: string | null;
 }
 
 // Raw Meta status enum. We persist this verbatim from Meta (sync + webhook)
