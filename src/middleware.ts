@@ -85,6 +85,78 @@ export async function middleware(request: NextRequest) {
     )
   }
 
+  // Account approval gate (migration 047). A signed-in user whose
+  // account is `pending` (new signup, not yet approved by a
+  // platform admin) or `suspended` gets bounced off every
+  // protected page and dashboard-scoped API route to a dedicated
+  // status page, rather than reaching the dashboard shell and
+  // having every individual fetch 401/403 piecemeal.
+  //
+  // /admin and /api/admin/* are excluded deliberately: they carry
+  // their own gate (requirePlatformAdmin, a fixed email allowlist —
+  // see src/lib/admin/auth.ts) that has nothing to do with the
+  // caller's own account status, and a platform admin must be able
+  // to reach /admin even in the edge case their own account row
+  // were ever anything but approved.
+  const approvalGatedPaths = [...protectedPaths, '/api/whatsapp/', '/api/account/', '/api/automations/', '/api/broadcasts/', '/api/contacts/', '/api/conversations/', '/api/flows/', '/api/ai/']
+  const isStatusPage =
+    request.nextUrl.pathname === '/account-pending' ||
+    request.nextUrl.pathname === '/account-suspended'
+  const isAdminSurface = request.nextUrl.pathname.startsWith('/admin') ||
+    request.nextUrl.pathname.startsWith('/api/admin')
+
+  if (
+    user &&
+    !isStatusPage &&
+    !isAdminSurface &&
+    approvalGatedPaths.some((path) => request.nextUrl.pathname.startsWith(path))
+  ) {
+    // Two round trips (profiles -> account_id, then accounts by id)
+    // rather than an embedded FK join (`profiles.select('accounts(...)')`).
+    // The embed forces PostgREST to resolve the profiles.account_id ->
+    // accounts.id relationship from its schema cache; right after a
+    // migration adds/changes that relationship the cache can be stale,
+    // the embed fails with PGRST200 ("could not find a relationship in
+    // the schema cache"), and — since that error was silently swallowed
+    // here — approvalStatus fell through to undefined, which is neither
+    // 'pending' nor 'suspended', so the gate let pending/suspended users
+    // straight through. Same failure mode already documented against
+    // getCurrentAccount() in src/lib/auth/account.ts (issue #294); this
+    // mirrors that fix. A plain by-id lookup needs no relationship
+    // inference and is gated by the same accounts RLS.
+    const { data: profileRow } = await supabase
+      .from('profiles')
+      .select('account_id')
+      .eq('user_id', user.id)
+      .maybeSingle()
+
+    let approvalStatus: string | undefined
+    if (profileRow?.account_id) {
+      const { data: accountRow } = await supabase
+        .from('accounts')
+        .select('approval_status')
+        .eq('id', profileRow.account_id)
+        .maybeSingle()
+      approvalStatus = accountRow?.approval_status
+    }
+
+    if (approvalStatus === 'pending' || approvalStatus === 'suspended') {
+      const isApiRoute = request.nextUrl.pathname.startsWith('/api/')
+      if (isApiRoute) {
+        return withRefreshedCookies(
+          NextResponse.json(
+            { error: approvalStatus === 'pending' ? 'Account pending approval' : 'Account suspended' },
+            { status: 403 },
+          ),
+        )
+      }
+      const url = request.nextUrl.clone()
+      url.pathname = approvalStatus === 'pending' ? '/account-pending' : '/account-suspended'
+      url.search = ''
+      return withRefreshedCookies(NextResponse.redirect(url))
+    }
+  }
+
   return supabaseResponse
 }
 
