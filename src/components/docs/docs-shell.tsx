@@ -11,7 +11,13 @@ import { cn } from '@/lib/utils';
 
 function SidebarNav({ nav, onNavigate }: { nav: NavGroup[]; onNavigate?: () => void }) {
   const pathname = usePathname();
-  const currentKey = pathname.startsWith('/docs/api-campaigns') ? 'api-campaigns' : 'reference';
+  // Match the most specific href first (every other doc's href starts
+  // with '/docs', so checking them before the 'reference' group at
+  // '/docs' itself is what makes this a correct longest-prefix match
+  // instead of always landing on 'reference'). Falls back to
+  // 'reference' for the docs home page and any unrecognized path.
+  const currentKey =
+    nav.find((g) => g.href !== '/docs' && pathname.startsWith(g.href))?.key ?? 'reference';
   const current = nav.find((g) => g.key === currentKey);
   const active = useActiveHeading((current?.sections ?? []).map((s) => s.id));
 

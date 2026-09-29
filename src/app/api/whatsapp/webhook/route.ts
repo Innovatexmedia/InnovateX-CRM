@@ -987,8 +987,16 @@ async function processMessage(
   // logging zero steps. `runAutomationsForTrigger` owns its own try/catch
   // and never throws; the `.catch` is belt-and-braces so one trigger
   // type's failure can't skip the rest of the loop.
+  // Tracks whether a `new_message_received` / `keyword_match` automation
+  // actually matched THIS inbound and ran (not merely "was active") —
+  // the AI auto-reply gate below uses this instead of an account-wide
+  // existence check, so an unrelated keyword automation no longer
+  // silences the bot for messages it was never going to touch. See the
+  // comment on `runAutomationsForTrigger` in src/lib/automations/
+  // engine.ts.
+  let responderAutomationConsumed = false
   for (const triggerType of automationTriggers) {
-    await runAutomationsForTrigger({
+    const consumed = await runAutomationsForTrigger({
       accountId,
       triggerType,
       contactId: contactRecord.id,
@@ -999,15 +1007,31 @@ async function processMessage(
         // trigger's exact-id match.
         interactive_reply_id: interactiveReplyId ?? undefined,
       },
-    }).catch((err) => console.error('[automations] dispatch failed:', err))
+    }).catch((err) => {
+      console.error('[automations] dispatch failed:', err)
+      return false
+    })
+    if (
+      consumed &&
+      (triggerType === 'new_message_received' || triggerType === 'keyword_match')
+    ) {
+      responderAutomationConsumed = true
+    }
   }
 
   // AI auto-reply. Runs only for plain-text inbound the deterministic
-  // flow runner did NOT consume (flows win over the LLM), and only when
-  // the account has enabled it. Awaited inside `after()` (same reason as
-  // the webhook dispatch below); `dispatchInboundToAiReply` owns its
-  // eligibility gates + try/catch and never throws.
-  if (!flowConsumed && !interactiveReplyId && inboundText.trim()) {
+  // flow runner did NOT consume (flows win over the LLM) and no
+  // responder Automation consumed (same waterfall, one level down —
+  // Automations win over the LLM too), and only when the account has
+  // enabled it. Awaited inside `after()` (same reason as the webhook
+  // dispatch below); `dispatchInboundToAiReply` owns its eligibility
+  // gates + try/catch and never throws.
+  if (
+    !flowConsumed &&
+    !responderAutomationConsumed &&
+    !interactiveReplyId &&
+    inboundText.trim()
+  ) {
     await dispatchInboundToAiReply({
       accountId,
       conversationId: conversation.id,

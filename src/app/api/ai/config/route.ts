@@ -47,10 +47,35 @@ export async function GET() {
     // The keys are selected only to derive the has_* flags; neither is
     // returned to the client.
     const { api_key, embeddings_api_key, ...safe } = data
+
+    // The webhook (src/app/api/whatsapp/webhook/route.ts) now runs a
+    // per-message waterfall: a `keyword_match` Automation only stands
+    // the AI bot down for a message that actually matched one of its
+    // keywords, so the two coexist fine and there's nothing to warn
+    // about there. `new_message_received` is different — it has no
+    // filter, so it matches literally every inbound, meaning an active
+    // one means the bot never fires, period. That's correct behaviour,
+    // but with no signal anywhere in the UI it reads as "auto-reply is
+    // broken" — surfacing it here lets Settings show a warning next to
+    // the toggle instead of leaving it to be discovered via a support
+    // ticket.
+    const { data: conflictingAutomations, error: conflictErr } = await supabase
+      .from('automations')
+      .select('id')
+      .eq('account_id', accountId)
+      .eq('is_active', true)
+      .eq('trigger_type', 'new_message_received')
+      .limit(1)
+    if (conflictErr) {
+      // Non-fatal — the warning is advisory, not the config itself.
+      console.error('[ai/config GET] conflict check failed:', conflictErr)
+    }
+
     return NextResponse.json({
       configured: true,
       has_key: !!api_key,
       has_embeddings_key: !!embeddings_api_key,
+      has_conflicting_automation: !conflictErr && !!conflictingAutomations?.length,
       ...safe,
     })
   } catch (err) {

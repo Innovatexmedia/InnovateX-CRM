@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
-import { Loader2, Sparkles, CheckCircle2, Trash2, Eye, EyeOff } from 'lucide-react';
+import { Loader2, Sparkles, CheckCircle2, Trash2, Eye, EyeOff, TriangleAlert } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
 import { canEditSettings } from '@/lib/auth/roles';
 import { Button } from '@/components/ui/button';
@@ -73,6 +73,11 @@ export function AiConfig() {
   const [systemPrompt, setSystemPrompt] = useState('');
   const [isActive, setIsActive] = useState(false);
   const [autoReplyEnabled, setAutoReplyEnabled] = useState(false);
+  // True when the account has an active Automation whose trigger is
+  // `new_message_received` or `keyword_match` — that silently stands
+  // the bot down for every conversation (see docs/ai-assistant.md).
+  // Purely advisory; never blocks saving the toggle.
+  const [hasConflictingAutomation, setHasConflictingAutomation] = useState(false);
   const [maxPerConversation, setMaxPerConversation] = useState(3);
   // Empty string = leave unassigned (shared queue).
   const [handoffAgentId, setHandoffAgentId] = useState('');
@@ -100,6 +105,7 @@ export function AiConfig() {
         setSystemPrompt(data.system_prompt ?? '');
         setIsActive(data.is_active);
         setAutoReplyEnabled(data.auto_reply_enabled);
+        setHasConflictingAutomation(Boolean(data.has_conflicting_automation));
         setMaxPerConversation(data.auto_reply_max_per_conversation ?? 3);
         setHandoffAgentId(data.handoff_agent_id ?? '');
         setHasStoredKey(Boolean(data.has_key));
@@ -436,6 +442,15 @@ export function AiConfig() {
                 disabled={disabled || !isActive}
               />
             </div>
+
+            {autoReplyEnabled && hasConflictingAutomation && (
+              <div className="flex items-start gap-2.5 rounded-md border border-amber-500/30 bg-amber-500/10 p-3">
+                <TriangleAlert className="mt-0.5 size-4 shrink-0 text-amber-600 dark:text-amber-400" />
+                <p className="text-xs text-amber-800 dark:text-amber-200">
+                  {t('autoReplyAutomationConflict')}
+                </p>
+              </div>
+            )}
 
             <div className="flex items-center justify-between gap-4">
               <div>

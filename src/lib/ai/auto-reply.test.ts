@@ -12,7 +12,6 @@ const h = vi.hoisted(() => ({
   sendTypingIndicator: vi.fn(),
   state: {
     conv: null as Record<string, unknown> | null,
-    autoResponders: [] as { id: string }[],
     claim: true as boolean,
     updatePayload: null as Record<string, unknown> | null,
     rpcCalls: [] as { name: string; args: unknown }[],
@@ -32,19 +31,12 @@ vi.mock('@/lib/whatsapp/meta-api', () => ({
 }))
 vi.mock('./admin-client', () => ({
   supabaseAdmin: () => ({
-    from: (table: string) => {
-      if (table === 'automations') {
-        // .select().eq().eq().in().limit() → active auto-responders
-        const chain = {
-          select: () => chain,
-          eq: () => chain,
-          in: () => chain,
-          limit: () =>
-            Promise.resolve({ data: h.state.autoResponders, error: null }),
-        }
-        return chain
-      }
-      // conversations
+    // Only `conversations` is queried directly by this module now — the
+    // account-wide "any active automation" existence check this used to
+    // stand in for was removed; that gate lives at the webhook route's
+    // call site instead (per-message, via runAutomationsForTrigger's
+    // return value). See the comment on dispatchInboundToAiReply.
+    from: () => {
       return {
         select: () => ({
           eq: () => ({
@@ -96,7 +88,6 @@ beforeEach(() => {
     ai_autoreply_disabled: false,
     ai_reply_count: 0,
   }
-  h.state.autoResponders = []
   h.state.claim = true
   h.state.updatePayload = null
   h.state.rpcCalls = []
@@ -132,14 +123,6 @@ describe('dispatchInboundToAiReply — eligibility gates', () => {
     expect(h.retrieveKnowledge).toHaveBeenCalled()
     const systemPrompt = h.generateReply.mock.calls[0][0].systemPrompt as string
     expect(systemPrompt).toContain('Returns accepted within 30 days.')
-  })
-
-  it('stands down when an active message-level automation exists', async () => {
-    h.state.autoResponders = [{ id: 'auto-1' }]
-    await dispatchInboundToAiReply(ARGS)
-    expect(h.generateReply).not.toHaveBeenCalled()
-    expect(h.engineSendText).not.toHaveBeenCalled()
-    expect(h.sendTypingIndicator).not.toHaveBeenCalled()
   })
 
   it('does not send when the atomic slot claim loses the race', async () => {

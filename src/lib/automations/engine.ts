@@ -63,8 +63,23 @@ export interface DispatchInput {
  * Must never throw — callers use fire-and-forget from the webhook.
  * All errors are caught and logged; per-automation failures are
  * recorded into automation_logs with status='failed'.
+ *
+ * Returns whether at least one automation actually matched AND ran
+ * (not just "was active" — one that matched but got skipped for an
+ * opted-out contact does not count, since nothing was sent). The
+ * webhook route uses this, for the `new_message_received` /
+ * `keyword_match` triggers specifically, to decide per-message
+ * whether the AI auto-reply bot should stand down — the same
+ * waterfall pattern (deterministic responder first, AI for whatever
+ * it didn't catch) Flows already use via `flowConsumed`. This
+ * replaces an older, blunter rule that silenced the bot account-wide
+ * whenever *any* such automation was merely active, whether or not it
+ * matched the message in front of it.
  */
-export async function runAutomationsForTrigger(input: DispatchInput): Promise<void> {
+export async function runAutomationsForTrigger(
+  input: DispatchInput,
+): Promise<boolean> {
+  let consumed = false
   try {
     const db = supabaseAdmin()
 
@@ -84,11 +99,11 @@ export async function runAutomationsForTrigger(input: DispatchInput): Promise<vo
         .maybeSingle()
       if (ownErr) {
         console.error('[automations] contact ownership check failed:', ownErr)
-        return
+        return false
       }
       if (!owned) {
         console.warn('[automations] contact not in account, refusing dispatch', input.contactId)
-        return
+        return false
       }
     }
 
@@ -101,9 +116,9 @@ export async function runAutomationsForTrigger(input: DispatchInput): Promise<vo
 
     if (error) {
       console.error('[automations] fetch failed:', error)
-      return
+      return false
     }
-    if (!automations || automations.length === 0) return
+    if (!automations || automations.length === 0) return false
 
     // Opt-out compliance (migration 044): when the contact has opted out
     // of WhatsApp messaging and the automation's `skip_opted_out` toggle
@@ -131,6 +146,7 @@ export async function runAutomationsForTrigger(input: DispatchInput): Promise<vo
         )
         continue
       }
+      consumed = true
       try {
         await executeAutomation(automation, input)
       } catch (err) {
@@ -140,6 +156,7 @@ export async function runAutomationsForTrigger(input: DispatchInput): Promise<vo
   } catch (err) {
     console.error('[automations] dispatch failed:', err)
   }
+  return consumed
 }
 
 /**

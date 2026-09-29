@@ -5,6 +5,7 @@
 // behaviour — this only reads and structures them for display.
 //   docs/public-api.md      → /docs
 //   docs/api-campaigns.md   → /docs/api-campaigns[/{id}]
+//   docs/ai-assistant.md    → /docs/ai-assistant
 //
 // next.config.ts lists these files in `outputFileTracingIncludes` so
 // they are present in the Docker/standalone build.
@@ -21,7 +22,7 @@ import {
   type TocItem,
 } from '@/lib/docs/markdown';
 
-export type DocKey = 'reference' | 'api-campaigns';
+export type DocKey = 'reference' | 'api-campaigns' | 'ai-assistant';
 
 export interface DocPageMeta {
   key: DocKey;
@@ -33,6 +34,7 @@ export interface DocPageMeta {
 export const DOC_PAGES: DocPageMeta[] = [
   { key: 'reference', href: '/docs', file: 'public-api.md', label: 'API Reference' },
   { key: 'api-campaigns', href: '/docs/api-campaigns', file: 'api-campaigns.md', label: 'API Campaigns' },
+  { key: 'ai-assistant', href: '/docs/ai-assistant', file: 'ai-assistant.md', label: 'AI Assistant' },
 ];
 
 export interface LoadedDoc {

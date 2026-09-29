@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { Sparkles, Hand, Undo2, Loader2 } from "lucide-react";
+import { Sparkles, Hand, Undo2, Loader2, TriangleAlert } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { useTranslations } from "next-intl";
@@ -17,28 +17,53 @@ import { useAuth } from "@/hooks/use-auth";
 // cached — a transient failure returns a default without poisoning the
 // cache, so it retries on the next thread open rather than hiding the
 // banner for the whole session.
+//
+// Short TTL, not "forever until reload": `hasConflictingAutomation`
+// depends on state an agent can change from several other screens
+// (Automations list, an automation's edit page, Settings → AI
+// Assistant) that have no way to reach into this module and invalidate
+// it. Wiring an explicit invalidation call from every one of those
+// mutation points would be fragile and easy to miss a spot on next
+// time someone adds one. A short TTL makes the banner self-heal within
+// a bounded window instead — the agent doesn't have to know to refresh
+// the tab for it to catch up.
 // ------------------------------------------------------------
+const STATUS_TTL_MS = 15_000;
+
 interface AiAccountStatus {
   autoReplyOn: boolean;
+  /** An active `New message received` automation matches every inbound,
+   *  so — even though `autoReplyOn` is true — the bot never actually
+   *  gets a turn on ANY conversation. Surfacing this here is what keeps
+   *  the "replying automatically" banner from lying to the agent, the
+   *  same conflict Settings → AI Assistant already warns about. See
+   *  `has_conflicting_automation` on GET /api/ai/config. */
+  hasConflictingAutomation: boolean;
 }
-const statusCache = new Map<string, AiAccountStatus>();
+interface CachedStatus extends AiAccountStatus {
+  fetchedAt: number;
+}
+const statusCache = new Map<string, CachedStatus>();
 
 async function fetchAiAccountStatus(accountId: string): Promise<AiAccountStatus> {
   const cached = statusCache.get(accountId);
-  if (cached) return cached;
+  if (cached && Date.now() - cached.fetchedAt < STATUS_TTL_MS) return cached;
   try {
     const res = await fetch("/api/ai/config", { cache: "no-store" });
-    if (!res.ok) return { autoReplyOn: false }; // don't cache a transient failure
+    if (!res.ok)
+      return { autoReplyOn: false, hasConflictingAutomation: false }; // don't cache a transient failure
     const j = await res.json();
-    const status = {
+    const status: CachedStatus = {
       // AI auto-reply is "live" only when configured, the master switch
       // is on, and the inbound bot is enabled.
       autoReplyOn: !!(j?.configured && j?.is_active && j?.auto_reply_enabled),
+      hasConflictingAutomation: !!j?.has_conflicting_automation,
+      fetchedAt: Date.now(),
     };
     statusCache.set(accountId, status);
     return status;
   } catch {
-    return { autoReplyOn: false }; // don't cache
+    return { autoReplyOn: false, hasConflictingAutomation: false }; // don't cache
   }
 }
 
@@ -81,6 +106,7 @@ export function AiThreadBanner({
   const t = useTranslations("Inbox.aiBanner");
   const { accountId } = useAuth();
   const [autoReplyOn, setAutoReplyOn] = useState<boolean | null>(null);
+  const [hasConflictingAutomation, setHasConflictingAutomation] = useState(false);
   const [busy, setBusy] = useState(false);
   // Optimistic local mirror of the pause flag so the banner flips
   // instantly on click; re-seeds whenever the thread (or its server
@@ -91,9 +117,28 @@ export function AiThreadBanner({
   useEffect(() => {
     if (!accountId) return;
     let alive = true;
-    fetchAiAccountStatus(accountId).then((s) => alive && setAutoReplyOn(s.autoReplyOn));
+    const load = () => {
+      fetchAiAccountStatus(accountId).then((s) => {
+        if (!alive) return;
+        setAutoReplyOn(s.autoReplyOn);
+        setHasConflictingAutomation(s.hasConflictingAutomation);
+      });
+    };
+    load();
+    // This component is never unmounted on a thread switch (MessageThread
+    // reuses one instance and just changes props), and an agent can sit
+    // in the same conversation for a while — so relying on a dependency
+    // change (conversationId, account switch) to re-trigger the fetch
+    // left the banner stuck on whatever it first loaded until something
+    // happened to remount it. Polling on the same cadence as the TTL
+    // above is what actually makes the cache short-lived instead of just
+    // theoretically short-lived: the banner catches up to an automation
+    // toggled off, or the AI config changed, within ~15s no matter what
+    // the agent does in the meantime.
+    const interval = setInterval(load, STATUS_TTL_MS);
     return () => {
       alive = false;
+      clearInterval(interval);
     };
   }, [accountId]);
 
@@ -159,6 +204,25 @@ export function AiThreadBanner({
   // Active, but a human already owns it → the bot won't fire; no banner.
   if (assignedAgentId) return null;
 
+  // Configured and enabled, but an account-wide `New message received`
+  // automation intercepts every inbound before the bot ever sees it (see
+  // `has_conflicting_automation` on GET /api/ai/config). Telling the
+  // agent "AI is replying automatically" here would be actively wrong —
+  // it never will, on this thread or any other, until that automation is
+  // turned off. Show the real state instead of a false "Take over".
+  if (hasConflictingAutomation) {
+    return (
+      <Banner tone="warning">
+        <div className="flex min-w-0 flex-1 items-center gap-1.5">
+          <TriangleAlert className="h-3.5 w-3.5 flex-shrink-0 text-amber-600 dark:text-amber-400" />
+          <span className="truncate font-medium text-foreground">
+            {t("blockedByAutomation")}
+          </span>
+        </div>
+      </Banner>
+    );
+  }
+
   // Active on this thread.
   return (
     <Banner tone="primary">
@@ -179,16 +243,16 @@ function Banner({
   tone,
   children,
 }: {
-  tone: "primary" | "muted";
+  tone: "primary" | "muted" | "warning";
   children: React.ReactNode;
 }) {
   return (
     <div
       className={cn(
         "flex items-center gap-3 border-b px-3 py-2 text-xs sm:px-4",
-        tone === "primary"
-          ? "border-primary/20 bg-primary/5"
-          : "border-border bg-muted/40",
+        tone === "primary" && "border-primary/20 bg-primary/5",
+        tone === "muted" && "border-border bg-muted/40",
+        tone === "warning" && "border-amber-500/30 bg-amber-500/10",
       )}
     >
       {children}

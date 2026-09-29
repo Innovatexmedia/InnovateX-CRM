@@ -316,6 +316,7 @@
     "aiBanner": {
       "pausedTitle": "AI assistant is paused here",
       "activeText": "AI assistant is replying automatically",
+      "blockedByAutomation": "AI is configured, but an active “New message received” automation is intercepting messages here — the bot won’t reply until it’s turned off.",
       "takeOver": "Take over",
       "resume": "Resume AI",
       "tookOver": "You’ve taken over this chat.",
@@ -1975,6 +1976,7 @@
       "enableAssistantDesc": "Master switch. Turns on the “Draft with AI” button in the inbox.",
       "autoReply": "Auto-reply to inbound messages",
       "autoReplyDesc": "The bot answers new inbound messages automatically (only when no flow handles them and no agent is assigned). Hands off to a human when it can’t help.",
+      "autoReplyAutomationConflict": "You have an active “New message received” automation — it matches every message, so auto-reply will stay silent while it's active. A Keyword-match automation runs fine alongside auto-reply and only stands the bot down for messages that match its keywords.",
       "maxAutoReplies": "Max auto-replies per conversation",
       "maxAutoRepliesDesc": "After this many bot replies in one thread, the bot goes quiet.",
       "handoffTo": "Hand off to",

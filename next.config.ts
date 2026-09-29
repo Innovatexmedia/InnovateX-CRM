@@ -76,6 +76,7 @@ const nextConfig: NextConfig = {
     "/docs": ["./docs/*.md"],
     "/docs/api-campaigns": ["./docs/*.md"],
     "/docs/api-campaigns/\\[id\\]": ["./docs/*.md"],
+    "/docs/ai-assistant": ["./docs/*.md"],
   },
 
   /**

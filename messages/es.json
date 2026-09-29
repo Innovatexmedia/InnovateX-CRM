@@ -310,6 +310,7 @@
     "aiBanner": {
       "pausedTitle": "El asistente de IA está en pausa aquí",
       "activeText": "El asistente de IA está respondiendo automáticamente",
+      "blockedByAutomation": "La IA está configurada, pero una automatización activa de “Mensaje nuevo recibido” está interceptando los mensajes aquí: el bot no responderá hasta que se desactive.",
       "takeOver": "Tomar el control",
       "resume": "Reanudar IA",
       "tookOver": "Tomaste el control de este chat.",
@@ -1933,6 +1934,7 @@
       "enableAssistantDesc": "Interruptor general. Activa el botón “Redactar con IA” en la bandeja de entrada.",
       "autoReply": "Responder automáticamente a mensajes entrantes",
       "autoReplyDesc": "El bot responde automáticamente a los nuevos mensajes entrantes (solo cuando ningún flujo los atiende y no hay agente asignado). Deriva a una persona cuando no puede ayudar.",
+      "autoReplyAutomationConflict": "Tienes una automatización activa de “Mensaje nuevo recibido”: coincide con todos los mensajes, por lo que la respuesta automática permanecerá inactiva mientras esté activa. Una automatización de coincidencia de palabras clave funciona bien junto con la respuesta automática y solo desactiva el bot para los mensajes que coinciden con sus palabras clave.",
       "maxAutoReplies": "Máximo de respuestas automáticas por conversación",
       "maxAutoRepliesDesc": "Después de esta cantidad de respuestas del bot en un mismo hilo, el bot guarda silencio.",
       "handoffTo": "Derivar a",

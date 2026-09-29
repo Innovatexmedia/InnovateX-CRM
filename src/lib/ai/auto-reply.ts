@@ -43,6 +43,17 @@ interface DispatchArgs {
  *   - the per-conversation reply cap is reached
  *   - there's nothing to reply to
  *
+ * One gate lives at the CALL SITE, not here: the caller (the webhook
+ * route) does not invoke this function at all when a `flowConsumed` OR
+ * a responder Automation (`new_message_received` / `keyword_match`)
+ * actually matched this inbound. That's a deliberate per-message
+ * waterfall — deterministic responders win, AI handles whatever they
+ * didn't — rather than an account-wide "an automation of that type is
+ * merely active somewhere" block, which used to silence this bot for
+ * messages an unrelated keyword automation was never going to touch.
+ * See the comment on `runAutomationsForTrigger` in
+ * src/lib/automations/engine.ts.
+ *
  * The 24h WhatsApp session window is inherently open here — we're
  * reacting to a customer message that just landed — so no separate
  * window check is needed.
@@ -63,23 +74,6 @@ export async function dispatchInboundToAiReply(
 
     const config = await loadAiConfig(db, accountId)
     if (!config || !config.autoReplyEnabled) return
-
-    // Deterministic, user-configured responders win over the LLM — the
-    // caller already excludes messages a Flow consumed. Message-level
-    // automations (`new_message_received` / `keyword_match`) are
-    // dispatched independently for this same inbound and may send their
-    // own reply, so if the account has any active one we stand down to
-    // avoid double-texting the customer. (Relationship triggers like
-    // `first_inbound_message` don't count — they're not per-message
-    // auto-responders.)
-    const { data: autoResponders } = await db
-      .from('automations')
-      .select('id')
-      .eq('account_id', accountId)
-      .eq('is_active', true)
-      .in('trigger_type', ['new_message_received', 'keyword_match'])
-      .limit(1)
-    if (autoResponders && autoResponders.length > 0) return
 
     const { data: conv, error: convErr } = await db
       .from('conversations')
