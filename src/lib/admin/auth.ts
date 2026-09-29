@@ -14,6 +14,11 @@
 // promote-another-admin UI. Adding or removing an admin is an env
 // var edit + redeploy, which is the right amount of ceremony for a
 // capability this powerful on a small operator team.
+//
+// Multiple admins: PLATFORM_ADMIN_EMAILS already supports a
+// comma-separated list (e.g. "a@x.com,b@x.com, c@x.com") — no code
+// change needed, just add more emails separated by commas in
+// .env.local (and in the production environment) and redeploy.
 // ============================================================
 
 import { createClient } from '@/lib/supabase/server'
