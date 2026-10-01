@@ -6,6 +6,7 @@ import type {
   ConditionStepConfig,
   KeywordMatchTriggerConfig,
   InteractiveReplyTriggerConfig,
+  IncomingWebhookTriggerConfig,
   TagTriggerConfig,
   SendMessageStepConfig,
   SendButtonsStepConfig,
@@ -42,6 +43,11 @@ export interface AutomationContext {
   agent_id?: string
   /** Button / list-row id the customer tapped, for interactive_reply. */
   interactive_reply_id?: string
+  /** The token from the request path, for incoming_webhook — matched
+   *  against the firing automation's own `trigger_config.token` so a
+   *  hit on one automation's URL never fires another. See
+   *  `POST /api/hooks/[token]`. */
+  webhook_token?: string
 }
 
 export interface DispatchInput {
@@ -811,6 +817,17 @@ export function triggerMatches(automation: Automation, ctx: AutomationContext | 
       return false
     }
     return cfg.reply_ids.includes(replyId)
+  }
+
+  // Match the request-path token against this automation's own token
+  // (exact). `runAutomationsForTrigger` fetches every active
+  // `incoming_webhook` automation on the account — an account can have
+  // several, each its own URL — so this is what keeps a POST to one
+  // automation's endpoint from also firing a sibling one that merely
+  // shares the account and trigger type.
+  if (automation.trigger_type === 'incoming_webhook') {
+    const cfg = automation.trigger_config as IncomingWebhookTriggerConfig
+    return Boolean(ctx?.webhook_token && cfg?.token && cfg.token === ctx.webhook_token)
   }
 
   if (automation.trigger_type === 'tag_added') {

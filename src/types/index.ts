@@ -503,7 +503,12 @@ export type AutomationTriggerType =
   | 'time_based'
   /** Customer tapped a reply button / list row whose id matches; lets
    *  multi-step menus be chained across automations. */
-  | 'interactive_reply';
+  | 'interactive_reply'
+  /** External system (landing page, Shopify, payment gateway, Zapier/
+   *  Make/n8n, …) POSTs to this automation's own unique URL — the
+   *  inbound-to-WhatsApp mirror of the `send_webhook` step. See
+   *  `IncomingWebhookTriggerConfig` and `POST /api/hooks/[token]`. */
+  | 'incoming_webhook';
 
 export type AutomationStepType =
   | 'send_message'
@@ -551,12 +556,64 @@ export interface InteractiveReplyTriggerConfig {
   reply_ids: string[];
 }
 
+export interface IncomingWebhookTriggerConfig {
+  /**
+   * Server-generated, cryptographically random. This is the ONLY
+   * credential on `POST /api/hooks/[token]` — never accept a
+   * client-supplied value for this field (see the POST/PATCH
+   * `/api/automations` routes, which strip it from the request body
+   * and always generate it server-side). Rotating it (a "Regenerate"
+   * action in the builder) invalidates the old URL immediately.
+   */
+  token: string;
+  /**
+   * How to pull CRM fields out of whatever JSON shape the external
+   * system actually sends — Shopify, a landing page, Zapier/Make and a
+   * client's own backend all shape their payloads differently, so this
+   * app never assumes one fixed contract. Each value is a dot-path into
+   * the received body (e.g. `"contact.phone"`, `"full_name"`), resolved
+   * by `getByPath` in `@/lib/automations/webhook-fields`.
+   *
+   * Required to activate the automation (see `validateTriggerForActivation`):
+   * `phone` must be set. Until it is, the URL still accepts and records
+   * requests (see `webhook_samples` on the automations row) so the
+   * "capture test data → map fields" builder flow has real payloads to
+   * map from, but the automation itself won't run.
+   *
+   * Omitted entirely (`field_mapping` undefined) falls back to the
+   * original fixed shape `{ phone, name, vars }` at the top level of the
+   * body — kept for a technical integrator who'd rather just conform to
+   * that contract than click through the mapping UI.
+   */
+  field_mapping?: {
+    phone: string;
+    name?: string;
+    /** Dot-path to a field holding either a comma-separated string or
+     *  a JSON array of tag names. */
+    tags?: string;
+    /** Destination var name (as used in `{{vars.*}}` inside steps) →
+     *  dot-path source in the received body. */
+    vars?: Record<string, string>;
+  };
+}
+
+/** One row of `automations.webhook_samples` — a rolling window (see
+ *  `MAX_WEBHOOK_SAMPLES` in the hooks route) of the raw bodies an
+ *  `incoming_webhook` automation has actually received, newest first.
+ *  Purely for the builder's "capture test data" step; never consumed
+ *  by the engine. */
+export interface WebhookSample {
+  received_at: string;
+  payload: Record<string, unknown>;
+}
+
 export type AutomationTriggerConfig =
   | Record<string, never>
   | KeywordMatchTriggerConfig
   | TagTriggerConfig
   | TimeBasedTriggerConfig
   | InteractiveReplyTriggerConfig
+  | IncomingWebhookTriggerConfig
   | Record<string, unknown>;
 
 export interface SendMessageStepConfig {
@@ -665,6 +722,11 @@ export interface Automation {
   /** Skip contacts with subscription_status='opted_out' when running
    *  this automation's steps (migration 044). Defaults to true. */
   skip_opted_out?: boolean;
+  /** Rolling window of raw request bodies this automation's
+   *  `incoming_webhook` URL has received (migration 049), newest first.
+   *  Only ever populated/consumed for that trigger type — see
+   *  `WebhookSample`. */
+  webhook_samples?: WebhookSample[];
   created_at: string;
   updated_at: string;
 }

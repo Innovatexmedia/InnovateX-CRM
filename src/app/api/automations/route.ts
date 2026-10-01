@@ -8,6 +8,7 @@ import {
   validateStepsForActivation,
   validateTriggerForActivation,
 } from '@/lib/automations/validate'
+import { generateWebhookToken } from '@/lib/automations/webhook-token'
 
 export async function GET() {
   const supabase = await createClient()
@@ -83,6 +84,22 @@ export async function POST(request: Request) {
       { error: 'name and trigger_type are required' },
       { status: 400 },
     )
+  }
+
+  // The webhook token is the ONLY credential on POST /api/hooks/[token]
+  // — never take it from the request body (a client could set it to a
+  // guessable or already-known value and hand a colleague's automation
+  // a URL they control). Always generate it server-side, discarding
+  // anything the caller sent under this key.
+  if (effectiveTriggerType === 'incoming_webhook') {
+    effectiveTriggerConfig = {
+      ...(effectiveTriggerConfig ?? {}),
+      token: generateWebhookToken(),
+    }
+  } else if (effectiveTriggerConfig && 'token' in effectiveTriggerConfig) {
+    const { token: _drop, ...rest } = effectiveTriggerConfig
+    void _drop
+    effectiveTriggerConfig = rest
   }
 
   // Block activation of a clearly broken automation up-front instead of

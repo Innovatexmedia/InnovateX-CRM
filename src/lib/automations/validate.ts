@@ -203,6 +203,29 @@ export function validateTriggerForActivation(
         message: 'reply ids cannot be empty strings',
       })
     }
+  } else if (triggerType === 'incoming_webhook') {
+    // The token is always server-generated (POST/PATCH /api/automations
+    // strip any client-supplied value and fill it in) — this check is a
+    // defense-in-depth backstop, not something the builder UI should
+    // ever need to surface to a user.
+    if (!nonEmpty(cfg.token)) {
+      issues.push({ path: 'trigger.token', message: 'webhook token is missing' })
+    }
+    // A configured mapping is what turns "URL exists" into "this
+    // automation can actually resolve who to message" — without it the
+    // route only records capture samples (see the hooks route), so an
+    // active automation with no phone mapping would just silently never
+    // fire. The legacy fixed `{phone,name,vars}` shape needs no mapping
+    // at all, which is exactly what activating with `field_mapping`
+    // entirely absent still allows — this only fires once the builder
+    // has started a mapping but left it incomplete.
+    const fieldMapping = cfg.field_mapping as { phone?: unknown } | undefined
+    if (fieldMapping !== undefined && !nonEmpty(fieldMapping.phone)) {
+      issues.push({
+        path: 'trigger.field_mapping.phone',
+        message: 'map an incoming field to Phone before activating',
+      })
+    }
   }
 
   return issues

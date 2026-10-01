@@ -41,7 +41,11 @@
     "defaultAvatar": "Avatar",
     "menuProfile": "Perfil",
     "menuSettings": "Configuración",
-    "menuSignOut": "Cerrar sesión"
+    "menuSignOut": "Cerrar sesión",
+    "collapseSidebar": "Contraer barra lateral",
+    "expandSidebar": "Expandir barra lateral",
+    "team": "Equipo",
+    "templates": "Plantillas"
   },
   "Header": {
     "dashboard": "Panel",
@@ -58,7 +62,9 @@
     "defaultAvatar": "Avatar",
     "menuProfile": "Perfil",
     "menuSettings": "Configuración",
-    "menuSignOut": "Cerrar sesión"
+    "menuSignOut": "Cerrar sesión",
+    "team": "Equipo",
+    "templates": "Plantillas"
   },
   "ModeToggle": {
     "switchMode": "Cambiar al modo {mode}"
@@ -739,7 +745,30 @@
       "retryFailed": "Reintentar fallidos ({count})",
       "toastResumeStarted": "Enviando a {count} destinatarios en segundo plano.",
       "toastResumeStartedCapped": "Enviando a {count} destinatarios en segundo plano. Otros {remaining} necesitarán otra ejecución.",
-      "toastResumeFailed": "No se pudo reanudar: {error}"
+      "toastResumeFailed": "No se pudo reanudar: {error}",
+      "scheduledCard": {
+        "cancelCampaign": "Cancelar campaña",
+        "cancelConfirmDesc": "Esta campaña no se enviará automáticamente. Sus destinatarios no recibirán este mensaje a menos que lo envíes manualmente más tarde.",
+        "cancelConfirmTitle": "¿Cancelar esta campaña?",
+        "deleteCampaign": "Eliminar campaña",
+        "desc": "Esta campaña comenzará automáticamente a las <b>{when}</b>.",
+        "editSchedule": "Editar programación",
+        "editScheduleDesc": "Elige una nueva fecha y hora para que esta campaña comience automáticamente.",
+        "editScheduleTitle": "Editar programación",
+        "keepScheduled": "Mantener programada",
+        "moreActions": "Más acciones",
+        "newDateTime": "Nueva fecha y hora",
+        "recipients": "{count, plural, =1 {# destinatario} other {# destinatarios}}",
+        "saveSchedule": "Guardar",
+        "sendNow": "Enviar ahora",
+        "sendNowConfirmDesc": "Esto enviará la campaña de inmediato a {count, plural, =1 {# destinatario} other {# destinatarios}} en lugar de esperar la hora programada. Esta acción no se puede deshacer.",
+        "sendNowConfirmTitle": "¿Enviar esta campaña ahora?",
+        "title": "Campaña programada"
+      },
+      "toastCancelFailed": "No se pudo cancelar la campaña.",
+      "toastCancelled": "Campaña cancelada.",
+      "toastRescheduleFailed": "No se pudo actualizar la programación.",
+      "toastRescheduled": "Programación actualizada."
     },
     "new": {
       "title": "Nueva difusión",
@@ -843,8 +872,6 @@
         }
       },
       "scheduleSend": {
-        "title": "Revisar y enviar",
-        "subtitle": "Ponle un nombre a tu difusión y confirma el envío.",
         "broadcastName": "Nombre de la difusión",
         "broadcastNamePlaceholder": "p. ej. Promo de verano",
         "summary": "Resumen",
@@ -857,7 +884,6 @@
         "variables": "Variables:",
         "variablesMapped": "{count} asignadas",
         "saveDraft": "Guardar como borrador",
-        "sendNow": "Enviar difusión",
         "sending": "Enviando...",
         "preparing": "Preparando...",
         "progressDesc": "Procesando {current} de {total} destinatarios...",
@@ -872,7 +898,22 @@
         "sendNowCardDesc": "Empieza a enviarse de inmediato tras confirmar.",
         "scheduleCardTitle": "Programar para más tarde",
         "scheduleCardDesc": "Elige una fecha y hora para enviarla automáticamente.",
-        "timezoneLabel": "Zona horaria"
+        "timezoneLabel": "Zona horaria",
+        "sendCampaign": "Enviar difusión",
+        "subtitleSend": "Ponle un nombre a tu difusión y confirma el envío.",
+        "titleSend": "Revisar y enviar",
+        "confirmScheduleDesc": "Esta campaña se enviará a <b>{count, number}</b> {count, plural, =1 {contacto} other {contactos}} usando la plantilla <b>{template}</b>, automáticamente, a las <b>{when}</b>.",
+        "confirmScheduleTitle": "Confirmar campaña programada",
+        "scheduleCampaign": "Programar campaña",
+        "scheduleDateLabel": "Fecha",
+        "schedulePastError": "Elige una fecha y hora futuras.",
+        "scheduleSectionSubtitle": "Elige cuándo debe comenzar esta campaña automáticamente.",
+        "scheduleSectionTitle": "Programación",
+        "scheduleTimeLabel": "Hora",
+        "scheduledToastDesc": "Se enviará automáticamente a la hora que elegiste.",
+        "scheduledToastTitle": "Campaña programada",
+        "subtitleSchedule": "Revisa los detalles de tu campaña y prográmala para su envío automático.",
+        "titleSchedule": "Revisar y programar"
       }
     },
     "newCampaignModal": {
@@ -889,7 +930,8 @@
       "recurringTitle": "Recurring Campaign",
       "recurringDesc": "Set up repeated campaigns to run automatically at regular intervals (daily, weekly, monthly, etc.).",
       "recurringBadge": "For engagement",
-      "comingSoon": "Coming soon"
+      "comingSoon": "Coming soon",
+      "title": "Crear una nueva campaña"
     },
     "apiCampaign": {
       "dialogTitle": "New API campaign",
@@ -1032,6 +1074,10 @@
         "time_based": {
           "label": "Por horario",
           "hint": "Según una programación recurrente"
+        },
+        "incoming_webhook": {
+          "label": "Webhook entrante",
+          "hint": "Un sistema externo (página de aterrizaje, Shopify, Zapier/Make/n8n, …) hace POST a la URL propia de esta automatización"
         }
       },
       "trigger": "Disparador",
@@ -1150,6 +1196,38 @@
         "label": "Omitir contactos dados de baja",
         "description": "Los contactos que se dieron de baja de WhatsApp nunca reciben los pasos de esta automatización.",
         "aria": "Omitir contactos dados de baja"
+      },
+      "incomingWebhook": {
+        "urlLabel": "URL del webhook",
+        "hint": "Envía cualquier JSON aquí para activar esta automatización: no hace falta que llegue antes un mensaje de WhatsApp. Captura una solicitud de prueba real abajo y luego asigna sus campos a Teléfono/Nombre/Etiquetas/variables. El formato fijo original de phone/name/vars también sigue funcionando sin asignación.",
+        "copy": "Copiar",
+        "copySuccess": "URL copiada",
+        "copyFailed": "No se pudo copiar la URL",
+        "regenerate": "Regenerar",
+        "regenerateSuccess": "Se generó una nueva URL — la anterior ya no funciona",
+        "regenerateFailed": "No se pudo regenerar la URL",
+        "saveFirst": "Guarda esta automatización una vez para generar su URL de webhook",
+        "captureLabel": "Datos de prueba recibidos",
+        "captureRefresh": "Actualizar",
+        "captureEmpty": "Aún no se han recibido solicitudes: envía un POST de prueba a la URL de arriba y luego pulsa Actualizar.",
+        "captureFieldCount": "{n} campos",
+        "captureHint": "Cada solicitud a esta URL se registra aquí, incluso antes de que la automatización esté activa; úsalo para comprobar que el sistema externo envía lo que esperas.",
+        "mapLabel": "Asignar campos",
+        "mapNeedsCapture": "Captura al menos una solicitud de prueba arriba para asignar sus campos.",
+        "mapPhone": "Número de teléfono",
+        "mapName": "Nombre",
+        "mapTags": "Etiquetas",
+        "mapVars": "Variables personalizadas",
+        "mapVarsAdd": "Añadir",
+        "mapVarsEmpty": "Aún no hay variables personalizadas asignadas.",
+        "mapVarsKeyPlaceholder": "vars.order_id",
+        "mapPickField": "Elige un campo…",
+        "mapHint": "El teléfono es obligatorio para activar esta automatización. Deja todo sin asignar para seguir usando el formato fijo original de phone/name/vars.",
+        "mapTagsHint": "Se compara con una etiqueta existente por nombre (sin distinguir mayúsculas), o se crea una nueva automáticamente.",
+        "captureClear": "Borrar",
+        "captureClearHint": "Elimina el historial de pruebas capturado de esta URL (no afecta a los contactos ni a la automatización activa).",
+        "captureClearSuccess": "Datos de prueba capturados eliminados",
+        "captureClearFailed": "No se pudieron eliminar los datos de prueba capturados"
       }
     }
   },

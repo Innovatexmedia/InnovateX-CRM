@@ -173,6 +173,16 @@ export const RATE_LIMITS = {
    *  capping a stampede; excess inbounds simply don't get an auto-reply
    *  (they still land in the inbox for a human). */
   aiAutoReplyAccount: { limit: 30, windowMs: 60_000 },
+  /** `POST /api/hooks/[token]` — the incoming-webhook automation
+   *  trigger. Unauthenticated by design (the token in the URL IS the
+   *  credential), so this is the only thing standing between a leaked
+   *  or brute-forced token and a spam flood into a customer's WhatsApp
+   *  automation. Keyed per token, not per caller IP — an external
+   *  integration (Shopify, a landing page) can legitimately fire from
+   *  a shared/rotating IP. 60/min is generous for any real lead-capture
+   *  or order-notification volume while bounding a runaway loop on the
+   *  caller's side or a leaked-URL abuse attempt. */
+  incomingWebhook: { limit: 60, windowMs: 60_000 },
 } as const;
 
 /** Test-only helper. Clears the in-memory state so unit tests don't

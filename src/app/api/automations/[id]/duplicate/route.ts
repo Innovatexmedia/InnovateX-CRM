@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { requireRole, toErrorResponse } from '@/lib/auth/account'
 import { supabaseAdmin } from '@/lib/automations/admin-client'
+import { generateWebhookToken } from '@/lib/automations/webhook-token'
 
 export async function POST(
   _request: Request,
@@ -34,6 +35,18 @@ export async function POST(
   if (origErr) return NextResponse.json({ error: origErr.message }, { status: 500 })
   if (!original) return NextResponse.json({ error: 'Not found' }, { status: 404 })
 
+  // An `incoming_webhook` automation's `trigger_config.token` is
+  // unique (migration 048) — copying it verbatim would collide with
+  // the original and fail the insert. A duplicate needs its own URL
+  // anyway: the whole point of "Incoming Webhook" is one unguessable
+  // link wired into exactly one external system, and silently sharing
+  // that link between two automations (only one of which the token's
+  // holder even knows to look at) is not a duplicate, it's a footgun.
+  const clonedTriggerConfig =
+    original.trigger_type === 'incoming_webhook'
+      ? { ...(original.trigger_config as Record<string, unknown>), token: generateWebhookToken() }
+      : original.trigger_config
+
   const { data: copy, error: copyErr } = await admin
     .from('automations')
     .insert({
@@ -44,7 +57,7 @@ export async function POST(
       name: `${original.name} (Copy)`,
       description: original.description,
       trigger_type: original.trigger_type,
-      trigger_config: original.trigger_config,
+      trigger_config: clonedTriggerConfig,
       is_active: false,
     })
     .select()

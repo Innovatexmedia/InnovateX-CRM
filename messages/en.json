@@ -1074,6 +1074,10 @@
         "time_based": {
           "label": "Time-Based",
           "hint": "On a recurring schedule"
+        },
+        "incoming_webhook": {
+          "label": "Incoming Webhook",
+          "hint": "An external system (landing page, Shopify, Zapier/Make/n8n, …) POSTs to this automation’s own URL"
         }
       },
       "trigger": "Trigger",
@@ -1192,6 +1196,38 @@
         "label": "Skip opted-out contacts",
         "description": "Contacts who opted out of WhatsApp messaging are never sent this automation's steps.",
         "aria": "Skip opted-out contacts"
+      },
+      "incomingWebhook": {
+        "urlLabel": "Webhook URL",
+        "hint": "POST any JSON here to fire this automation — no WhatsApp message needs to arrive first. Capture a real test request below, then map its fields onto Phone/Name/Tags/vars. Sending the original fixed phone/name/vars shape still works even without mapping.",
+        "copy": "Copy",
+        "copySuccess": "URL copied",
+        "copyFailed": "Couldn’t copy the URL",
+        "regenerate": "Regenerate",
+        "regenerateSuccess": "New URL generated — the old one no longer works",
+        "regenerateFailed": "Couldn’t regenerate the URL",
+        "saveFirst": "Save this automation once to generate its webhook URL",
+        "captureLabel": "Test data received",
+        "captureRefresh": "Refresh",
+        "captureEmpty": "No requests received yet — send a test POST to the URL above, then hit Refresh.",
+        "captureFieldCount": "{n} fields",
+        "captureHint": "Every request to this URL is recorded here, even before the automation is active — use this to check the external system is sending what you expect.",
+        "mapLabel": "Map fields",
+        "mapNeedsCapture": "Capture at least one test request above to map its fields.",
+        "mapPhone": "Phone number",
+        "mapName": "Name",
+        "mapTags": "Tags",
+        "mapVars": "Custom variables",
+        "mapVarsAdd": "Add",
+        "mapVarsEmpty": "No custom variables mapped yet.",
+        "mapVarsKeyPlaceholder": "vars.order_id",
+        "mapPickField": "Pick a field…",
+        "mapHint": "Phone is required to activate this automation. Leave everything unmapped to keep using the original fixed phone/name/vars shape instead.",
+        "mapTagsHint": "Matched to an existing tag by name (case-insensitive), or a new one is created automatically.",
+        "captureClear": "Clear",
+        "captureClearHint": "Erase this URL's captured test history (does not affect contacts or the live automation).",
+        "captureClearSuccess": "Captured test data cleared",
+        "captureClearFailed": "Couldn't clear captured test data"
       }
     }
   },

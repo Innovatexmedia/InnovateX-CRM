@@ -41,7 +41,11 @@
     "defaultAvatar": "Avatar",
     "menuProfile": "Perfil",
     "menuSettings": "Configurações",
-    "menuSignOut": "Sair"
+    "menuSignOut": "Sair",
+    "collapseSidebar": "Recolher barra lateral",
+    "expandSidebar": "Expandir barra lateral",
+    "team": "Equipe",
+    "templates": "Modelos"
   },
   "Header": {
     "dashboard": "Painel",
@@ -58,7 +62,9 @@
     "defaultAvatar": "Avatar",
     "menuProfile": "Perfil",
     "menuSettings": "Configurações",
-    "menuSignOut": "Sair"
+    "menuSignOut": "Sair",
+    "team": "Equipe",
+    "templates": "Modelos"
   },
   "ModeToggle": {
     "switchMode": "Mudar para o modo {mode}"
@@ -739,7 +745,30 @@
       "retryFailed": "Tentar novamente os que falharam ({count})",
       "toastResumeStarted": "Enviando para {count} destinatários em segundo plano.",
       "toastResumeStartedCapped": "Enviando para {count} destinatários em segundo plano. Outros {remaining} precisarão de mais uma execução.",
-      "toastResumeFailed": "Não foi possível retomar: {error}"
+      "toastResumeFailed": "Não foi possível retomar: {error}",
+      "scheduledCard": {
+        "cancelCampaign": "Cancelar campanha",
+        "cancelConfirmDesc": "Esta campanha não será enviada automaticamente. Os destinatários não receberão esta mensagem a menos que você a envie manualmente mais tarde.",
+        "cancelConfirmTitle": "Cancelar esta campanha?",
+        "deleteCampaign": "Excluir campanha",
+        "desc": "Esta campanha começará automaticamente às <b>{when}</b>.",
+        "editSchedule": "Editar agendamento",
+        "editScheduleDesc": "Escolha uma nova data e hora para esta campanha começar automaticamente.",
+        "editScheduleTitle": "Editar agendamento",
+        "keepScheduled": "Manter agendada",
+        "moreActions": "Mais ações",
+        "newDateTime": "Nova data e hora",
+        "recipients": "{count, plural, one {# destinatário} other {# destinatários}}",
+        "saveSchedule": "Salvar",
+        "sendNow": "Enviar agora",
+        "sendNowConfirmDesc": "Isso enviará a campanha imediatamente para {count, plural, one {# destinatário} other {# destinatários}} em vez de esperar o horário agendado. Esta ação não pode ser desfeita.",
+        "sendNowConfirmTitle": "Enviar esta campanha agora?",
+        "title": "Campanha agendada"
+      },
+      "toastCancelFailed": "Não foi possível cancelar a campanha.",
+      "toastCancelled": "Campanha cancelada.",
+      "toastRescheduleFailed": "Não foi possível atualizar o agendamento.",
+      "toastRescheduled": "Agendamento atualizado."
     },
     "new": {
       "title": "Novo disparo",
@@ -843,8 +872,6 @@
         }
       },
       "scheduleSend": {
-        "title": "Revisar e enviar",
-        "subtitle": "Dê um nome ao seu disparo e confirme o envio.",
         "broadcastName": "Nome do disparo",
         "broadcastNamePlaceholder": "ex.: Promoção de verão",
         "summary": "Resumo",
@@ -857,7 +884,6 @@
         "variables": "Variáveis:",
         "variablesMapped": "{count} associadas",
         "saveDraft": "Salvar como rascunho",
-        "sendNow": "Enviar disparo",
         "sending": "Enviando...",
         "preparing": "Preparando...",
         "progressDesc": "Processando {current} de {total} destinatários...",
@@ -872,7 +898,22 @@
         "sendNowCardDesc": "Começa a enviar imediatamente após a confirmação.",
         "scheduleCardTitle": "Agendar para depois",
         "scheduleCardDesc": "Escolha uma data e hora para enviar automaticamente.",
-        "timezoneLabel": "Fuso horário"
+        "timezoneLabel": "Fuso horário",
+        "sendCampaign": "Enviar disparo",
+        "subtitleSend": "Dê um nome ao seu disparo e confirme o envio.",
+        "titleSend": "Revisar e enviar",
+        "confirmScheduleDesc": "Esta campanha será enviada para <b>{count, number}</b> {count, plural, one {contato} other {contatos}} usando o modelo <b>{template}</b>, automaticamente, às <b>{when}</b>.",
+        "confirmScheduleTitle": "Confirmar campanha agendada",
+        "scheduleCampaign": "Agendar campanha",
+        "scheduleDateLabel": "Data",
+        "schedulePastError": "Escolha uma data e hora futuras.",
+        "scheduleSectionSubtitle": "Escolha quando esta campanha deve começar automaticamente.",
+        "scheduleSectionTitle": "Agendamento",
+        "scheduleTimeLabel": "Hora",
+        "scheduledToastDesc": "Será enviada automaticamente no horário que você escolheu.",
+        "scheduledToastTitle": "Campanha agendada",
+        "subtitleSchedule": "Revise os detalhes da sua campanha e agende o envio automático.",
+        "titleSchedule": "Revisar e agendar"
       }
     },
     "newCampaignModal": {
@@ -889,7 +930,8 @@
       "recurringTitle": "Recurring Campaign",
       "recurringDesc": "Set up repeated campaigns to run automatically at regular intervals (daily, weekly, monthly, etc.).",
       "recurringBadge": "For engagement",
-      "comingSoon": "Coming soon"
+      "comingSoon": "Coming soon",
+      "title": "Criar uma nova campanha"
     },
     "apiCampaign": {
       "dialogTitle": "New API campaign",
@@ -1032,6 +1074,10 @@
         "time_based": {
           "label": "Por horário",
           "hint": "Em um agendamento recorrente"
+        },
+        "incoming_webhook": {
+          "label": "Webhook de entrada",
+          "hint": "Um sistema externo (página de destino, Shopify, Zapier/Make/n8n, …) envia um POST para a URL própria desta automação"
         }
       },
       "trigger": "Gatilho",
@@ -1150,6 +1196,38 @@
         "label": "Ignorar contatos que optaram por sair",
         "description": "Contatos que optaram por sair do WhatsApp nunca recebem as etapas desta automação.",
         "aria": "Ignorar contatos que optaram por sair"
+      },
+      "incomingWebhook": {
+        "urlLabel": "URL do webhook",
+        "hint": "Envie qualquer JSON aqui para acionar esta automação — não é preciso que uma mensagem do WhatsApp chegue antes. Capture uma solicitação de teste real abaixo e depois mapeie os campos para Telefone/Nome/Tags/variáveis. O formato fixo original de phone/name/vars também continua funcionando sem mapeamento.",
+        "copy": "Copiar",
+        "copySuccess": "URL copiada",
+        "copyFailed": "Não foi possível copiar a URL",
+        "regenerate": "Regenerar",
+        "regenerateSuccess": "Nova URL gerada — a anterior não funciona mais",
+        "regenerateFailed": "Não foi possível regenerar a URL",
+        "saveFirst": "Salve esta automação uma vez para gerar sua URL de webhook",
+        "captureLabel": "Dados de teste recebidos",
+        "captureRefresh": "Atualizar",
+        "captureEmpty": "Nenhuma solicitação recebida ainda — envie um POST de teste para a URL acima e clique em Atualizar.",
+        "captureFieldCount": "{n} campos",
+        "captureHint": "Toda solicitação para esta URL é registrada aqui, mesmo antes de a automação estar ativa — use isso para conferir se o sistema externo está enviando o esperado.",
+        "mapLabel": "Mapear campos",
+        "mapNeedsCapture": "Capture pelo menos uma solicitação de teste acima para mapear os campos.",
+        "mapPhone": "Número de telefone",
+        "mapName": "Nome",
+        "mapTags": "Tags",
+        "mapVars": "Variáveis personalizadas",
+        "mapVarsAdd": "Adicionar",
+        "mapVarsEmpty": "Nenhuma variável personalizada mapeada ainda.",
+        "mapVarsKeyPlaceholder": "vars.order_id",
+        "mapPickField": "Escolha um campo…",
+        "mapHint": "O telefone é obrigatório para ativar esta automação. Deixe tudo sem mapear para continuar usando o formato fixo original de phone/name/vars.",
+        "mapTagsHint": "É comparado a uma tag existente pelo nome (sem diferenciar maiúsculas/minúsculas), ou uma nova é criada automaticamente.",
+        "captureClear": "Limpar",
+        "captureClearHint": "Apaga o histórico de testes capturado desta URL (não afeta contatos nem a automação ativa).",
+        "captureClearSuccess": "Dados de teste capturados foram apagados",
+        "captureClearFailed": "Não foi possível apagar os dados de teste capturados"
       }
     }
   },

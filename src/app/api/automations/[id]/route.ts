@@ -11,6 +11,7 @@ import {
   validateStepsForActivation,
   validateTriggerForActivation,
 } from '@/lib/automations/validate'
+import { generateWebhookToken } from '@/lib/automations/webhook-token'
 
 async function requireUser() {
   const supabase = await createClient()
@@ -89,6 +90,48 @@ export async function PATCH(
     if (k in body) update[k] = body[k]
   }
 
+  // Webhook token handling — mirrors the POST route's rule: this field
+  // is never client-settable. Three cases land here:
+  //   1. `regenerate_webhook_token: true` — rotate it (the "Regenerate"
+  //      action in the builder). Invalidates the old URL immediately.
+  //   2. The trigger is (already, or now becoming) `incoming_webhook`
+  //      and there's no token yet (a fresh automation, or one whose
+  //      trigger_type this same PATCH is switching to it) — generate
+  //      one so the automation is never left in a state where its own
+  //      trigger type has nothing to receive on.
+  //   3. Anything else — strip a client-supplied `token` from whatever
+  //      trigger_config it sent, same as the POST route.
+  const mergedTriggerTypeForToken = (update.trigger_type ?? existing.trigger_type) as string
+  const incomingConfig = (update.trigger_config ?? {}) as Record<string, unknown>
+  const existingConfig = (existing.trigger_config ?? {}) as Record<string, unknown>
+  if (body.regenerate_webhook_token === true) {
+    if (mergedTriggerTypeForToken !== 'incoming_webhook') {
+      return NextResponse.json(
+        { error: 'regenerate_webhook_token only applies to the incoming_webhook trigger' },
+        { status: 400 },
+      )
+    }
+    update.trigger_config = { ...existingConfig, ...incomingConfig, token: generateWebhookToken() }
+  } else if (mergedTriggerTypeForToken === 'incoming_webhook') {
+    const alreadyHasToken = typeof existingConfig.token === 'string' && existingConfig.token
+    // Only actually touch trigger_config when there's something to do —
+    // the client sent one (merge it in, token still wins), or there's no
+    // token yet to generate one for. A plain `{ is_active: true }` PATCH
+    // on an already-configured webhook trigger should not rewrite
+    // trigger_config at all.
+    if ('trigger_config' in update || !alreadyHasToken) {
+      update.trigger_config = {
+        ...existingConfig,
+        ...incomingConfig,
+        token: alreadyHasToken ? existingConfig.token : generateWebhookToken(),
+      }
+    }
+  } else if ('trigger_config' in update) {
+    const { token: _drop, ...rest } = incomingConfig
+    void _drop
+    update.trigger_config = rest
+  }
+
   // If this PATCH leaves the automation active (either explicitly
   // activating it OR editing an already-active one), validate the
   // merged configuration first. Activation is the natural gate — drafts
@@ -129,7 +172,14 @@ export async function PATCH(
     if (err) return NextResponse.json({ error: err }, { status: 500 })
   }
 
-  return NextResponse.json({ ok: true })
+  // Echo the (possibly server-generated/rotated) trigger_config back —
+  // the builder's "Regenerate" action needs the new token without a
+  // second round trip, and there's no other response on a PATCH for it
+  // to learn the value from.
+  return NextResponse.json({
+    ok: true,
+    trigger_config: (update.trigger_config ?? existing.trigger_config) as unknown,
+  })
 }
 
 export async function DELETE(

@@ -406,6 +406,44 @@ describe("triggerMatches — interactive_reply", () => {
   });
 });
 
+describe("triggerMatches — incoming_webhook", () => {
+  function automation(token: string | undefined): Automation {
+    return {
+      id: "a1",
+      account_id: ACCOUNT,
+      user_id: "u1",
+      name: "webhook trigger",
+      trigger_type: "incoming_webhook",
+      trigger_config: token === undefined ? {} : { token },
+      is_active: true,
+      execution_count: 0,
+      created_at: "",
+      updated_at: "",
+    };
+  }
+
+  it("matches only the exact token", () => {
+    expect(triggerMatches(automation("abc123"), { webhook_token: "abc123" })).toBe(true);
+  });
+
+  it("does not match a different automation's token — the case that matters: an\
+ account can have several incoming_webhook automations (each its own URL), and a\
+ POST to one must never also fire a sibling", () => {
+    expect(triggerMatches(automation("abc123"), { webhook_token: "xyz789" })).toBe(false);
+  });
+
+  it("does not match on a substring (exact only)", () => {
+    expect(triggerMatches(automation("abc123"), { webhook_token: "abc" })).toBe(false);
+    expect(triggerMatches(automation("abc"), { webhook_token: "abc123" })).toBe(false);
+  });
+
+  it("does not match when the token is missing on either side", () => {
+    expect(triggerMatches(automation("abc123"), {})).toBe(false);
+    expect(triggerMatches(automation(undefined), { webhook_token: "abc123" })).toBe(false);
+    expect(triggerMatches(automation(""), { webhook_token: "" })).toBe(false);
+  });
+});
+
 describe("triggerMatches — tag_added", () => {
   function automation(tagId?: string): Automation {
     return {

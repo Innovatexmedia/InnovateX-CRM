@@ -4,6 +4,7 @@ import {
   createContext,
   useContext,
   useEffect,
+  useMemo,
   useState,
   type ReactNode,
 } from "react"
@@ -33,6 +34,8 @@ import {
   ArrowUp,
   MousePointerClick,
   List,
+  Copy,
+  RefreshCw,
 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
@@ -54,7 +57,12 @@ import type {
   KeywordMatchTriggerConfig,
   MessageTemplate,
   Tag as TagRecord,
+  WebhookSample,
 } from "@/types"
+import {
+  flattenPayloadKeys,
+  type FlattenedField,
+} from "@/lib/automations/webhook-fields"
 import {
   InteractiveBuilder,
   blankButtonsPayload,
@@ -150,6 +158,7 @@ const TRIGGER_OPTIONS: { value: AutomationTriggerType }[] = [
   { value: "conversation_assigned" },
   { value: "tag_added" },
   { value: "time_based" },
+  { value: "incoming_webhook" },
 ]
 
 function cid(): string {
@@ -784,6 +793,7 @@ export function AutomationBuilder({ initial }: { initial: BuilderInitial }) {
             <TriggerCard
               type={state.trigger_type}
               config={state.trigger_config}
+              automationId={initial.id}
               onTypeChange={(tVal) => patchTop("trigger_type", tVal)}
               onConfigChange={(c) => patchTop("trigger_config", c)}
               t={t}
@@ -813,12 +823,18 @@ export function AutomationBuilder({ initial }: { initial: BuilderInitial }) {
 function TriggerCard({
   type,
   config,
+  automationId,
   onTypeChange,
   onConfigChange,
   t,
 }: {
   type: AutomationTriggerType
   config: Record<string, unknown>
+  /** Undefined for a not-yet-saved automation — the webhook URL only
+   *  exists once there's a row (and a server-generated token) to point
+   *  it at, so the config panel below shows a "save first" hint until
+   *  this is set. */
+  automationId?: string
   onTypeChange: (t: AutomationTriggerType) => void
   onConfigChange: (c: Record<string, unknown>) => void
   t: ReturnType<typeof useTranslations>
@@ -908,9 +924,457 @@ function TriggerCard({
                 </p>
               </div>
             )}
+            {type === "incoming_webhook" && (
+              <IncomingWebhookConfig
+                config={config}
+                automationId={automationId}
+                onConfigChange={onConfigChange}
+                t={t}
+              />
+            )}
           </div>
         )}
       </div>
+    </div>
+  )
+}
+
+/**
+ * The full Incoming Webhook setup: (1) the automation's own receiving
+ * URL with copy/regenerate, (2) a live view of real requests it has
+ * received ("capture test data"), and (3) a field-mapping step built
+ * from those captured payloads — the same three-step shape AiSensy,
+ * Intercom and Zendesk use for this kind of trigger, because none of
+ * them can assume what JSON shape the external system on the other end
+ * will actually send. `token` lives in `trigger_config`, server-
+ * generated (see `IncomingWebhookTriggerConfig`); a brand-new, unsaved
+ * automation has none yet, so steps 2 and 3 only render once there's a
+ * URL to receive against.
+ */
+function IncomingWebhookConfig({
+  config,
+  automationId,
+  onConfigChange,
+  t,
+}: {
+  config: Record<string, unknown>
+  automationId?: string
+  onConfigChange: (c: Record<string, unknown>) => void
+  t: ReturnType<typeof useTranslations>
+}) {
+  const [regenerating, setRegenerating] = useState(false)
+  const [samples, setSamples] = useState<WebhookSample[]>([])
+  const [loadingSamples, setLoadingSamples] = useState(false)
+  const token = typeof config.token === "string" ? config.token : ""
+  // window.location.origin rather than an env var: this is a client
+  // component, and the URL only needs to be correct for whatever host
+  // the agent is looking at it from right now — no server round trip
+  // needed just to render a copyable link.
+  const url =
+    token && typeof window !== "undefined"
+      ? `${window.location.origin}/api/hooks/${token}`
+      : ""
+
+  async function loadSamples() {
+    if (!automationId) return
+    setLoadingSamples(true)
+    try {
+      const res = await fetch(`/api/automations/${automationId}/webhook-samples`)
+      const body = await res.json().catch(() => ({}))
+      if (res.ok) setSamples((body.samples as WebhookSample[]) ?? [])
+    } finally {
+      setLoadingSamples(false)
+    }
+  }
+
+  async function clearSamples() {
+    if (!automationId) return
+    setLoadingSamples(true)
+    try {
+      const res = await fetch(`/api/automations/${automationId}/webhook-samples`, {
+        method: "DELETE",
+      })
+      if (res.ok) {
+        setSamples([])
+        toast.success(t("incomingWebhook.captureClearSuccess"))
+      } else {
+        const body = await res.json().catch(() => ({}))
+        toast.error(body?.error ?? t("incomingWebhook.captureClearFailed"))
+      }
+    } finally {
+      setLoadingSamples(false)
+    }
+  }
+
+  // Load once the URL exists. No polling loop here — "capture test
+  // data" is something the user drives by clicking Refresh right after
+  // firing a test request from their own system, not a background
+  // process this panel needs to keep warm.
+  useEffect(() => {
+    if (automationId && token) void loadSamples()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [automationId, token])
+
+  async function copy() {
+    if (!url) return
+    try {
+      await navigator.clipboard.writeText(url)
+      toast.success(t("incomingWebhook.copySuccess"))
+    } catch {
+      toast.error(t("incomingWebhook.copyFailed"))
+    }
+  }
+
+  async function regenerate() {
+    if (!automationId) return
+    setRegenerating(true)
+    try {
+      const res = await fetch(`/api/automations/${automationId}`, {
+        method: "PATCH",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ regenerate_webhook_token: true }),
+      })
+      const body = await res.json().catch(() => ({}))
+      if (!res.ok) {
+        toast.error(body?.error ?? t("incomingWebhook.regenerateFailed"))
+        return
+      }
+      onConfigChange(body.trigger_config as Record<string, unknown>)
+      toast.success(t("incomingWebhook.regenerateSuccess"))
+    } finally {
+      setRegenerating(false)
+    }
+  }
+
+  if (!token) {
+    return (
+      <p className="rounded-md border border-dashed border-border bg-muted/40 px-2.5 py-2 text-[11px] text-muted-foreground">
+        {t("incomingWebhook.saveFirst")}
+      </p>
+    )
+  }
+
+  return (
+    <div className="space-y-3">
+      <div>
+        <label className="mb-1 block text-xs font-medium text-muted-foreground">
+          {t("incomingWebhook.urlLabel")}
+        </label>
+        <div className="flex items-center gap-1.5">
+          <Input
+            readOnly
+            value={url}
+            onFocus={(e) => e.currentTarget.select()}
+            className="bg-muted font-mono text-[11px] text-foreground"
+          />
+          <Button type="button" variant="outline" size="icon" onClick={copy} title={t("incomingWebhook.copy")}>
+            <Copy className="h-3.5 w-3.5" />
+          </Button>
+        </div>
+        <p className="mt-1 text-[11px] text-muted-foreground">{t("incomingWebhook.hint")}</p>
+        {automationId && (
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={regenerate}
+            disabled={regenerating}
+            className="mt-2 h-7 text-[11px]"
+          >
+            {regenerating ? <Loader2 className="h-3 w-3 animate-spin" /> : null}
+            {t("incomingWebhook.regenerate")}
+          </Button>
+        )}
+      </div>
+
+      <WebhookCaptureStep
+        samples={samples}
+        loading={loadingSamples}
+        onRefresh={loadSamples}
+        onClear={clearSamples}
+        t={t}
+      />
+
+      <WebhookFieldMappingStep
+        samples={samples}
+        config={config}
+        onConfigChange={onConfigChange}
+        t={t}
+      />
+    </div>
+  )
+}
+
+/**
+ * "Capture test data" — send a real request to the URL above from
+ * whatever external system you're wiring up, then hit Refresh. Every
+ * valid-token request is recorded server-side regardless of whether
+ * this automation is active or mapped yet (see `POST /api/hooks/[token]`),
+ * so this works before the integration is fully set up.
+ */
+function WebhookCaptureStep({
+  samples,
+  loading,
+  onRefresh,
+  onClear,
+  t,
+}: {
+  samples: WebhookSample[]
+  loading: boolean
+  onRefresh: () => void
+  onClear: () => void
+  t: ReturnType<typeof useTranslations>
+}) {
+  return (
+    <div className="rounded-md border border-border bg-muted/20 p-2.5">
+      <div className="mb-1.5 flex items-center justify-between">
+        <label className="text-xs font-medium text-muted-foreground">
+          {t("incomingWebhook.captureLabel")}
+        </label>
+        <div className="flex items-center gap-1">
+          {samples.length > 0 && (
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={onClear}
+              disabled={loading}
+              className="h-6 gap-1 text-[11px] text-muted-foreground"
+              title={t("incomingWebhook.captureClearHint")}
+            >
+              <Trash2 className="h-3 w-3" />
+              {t("incomingWebhook.captureClear")}
+            </Button>
+          )}
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={onRefresh}
+            disabled={loading}
+            className="h-6 gap-1 text-[11px]"
+          >
+            <RefreshCw className={`h-3 w-3 ${loading ? "animate-spin" : ""}`} />
+            {t("incomingWebhook.captureRefresh")}
+          </Button>
+        </div>
+      </div>
+      {samples.length === 0 ? (
+        <p className="text-[11px] text-muted-foreground">{t("incomingWebhook.captureEmpty")}</p>
+      ) : (
+        <ul className="max-h-36 space-y-1 overflow-y-auto">
+          {samples.map((s, i) => {
+            const fieldCount = Object.keys(s.payload ?? {}).length
+            return (
+              <li
+                key={`${s.received_at}-${i}`}
+                className="flex items-center justify-between rounded border border-border/60 bg-background px-2 py-1 text-[11px] text-muted-foreground"
+              >
+                <span>{new Date(s.received_at).toLocaleString()}</span>
+                <span>{t("incomingWebhook.captureFieldCount", { n: fieldCount })}</span>
+              </li>
+            )
+          })}
+        </ul>
+      )}
+      <p className="mt-1.5 text-[11px] text-muted-foreground">{t("incomingWebhook.captureHint")}</p>
+    </div>
+  )
+}
+
+type IncomingWebhookFieldMapping = {
+  phone?: string
+  name?: string
+  tags?: string
+  vars?: Record<string, string>
+}
+
+/**
+ * Map whatever JSON keys actually showed up in the captured samples
+ * onto the CRM's fields. Options in every picker come from
+ * `flattenPayloadKeys` run across all captured samples (deduped by
+ * path, first-seen preview wins) — never a hardcoded list, since the
+ * whole point is that every integration's payload looks different.
+ */
+function WebhookFieldMappingStep({
+  samples,
+  config,
+  onConfigChange,
+  t,
+}: {
+  samples: WebhookSample[]
+  config: Record<string, unknown>
+  onConfigChange: (c: Record<string, unknown>) => void
+  t: ReturnType<typeof useTranslations>
+}) {
+  const fieldMapping = (config.field_mapping ?? {}) as IncomingWebhookFieldMapping
+
+  const fields = useMemo<FlattenedField[]>(() => {
+    const seen = new Map<string, FlattenedField>()
+    for (const s of samples) {
+      for (const f of flattenPayloadKeys(s.payload ?? {})) {
+        if (!seen.has(f.path)) seen.set(f.path, f)
+      }
+    }
+    return Array.from(seen.values())
+  }, [samples])
+
+  function updateMapping(patch: Partial<IncomingWebhookFieldMapping>) {
+    onConfigChange({ ...config, field_mapping: { ...fieldMapping, ...patch } })
+  }
+
+  const varsList = Object.entries(fieldMapping.vars ?? {})
+
+  function updateVar(index: number, key: string, sourcePath: string) {
+    const entries = [...varsList]
+    entries[index] = [key, sourcePath]
+    updateMapping({ vars: Object.fromEntries(entries) })
+  }
+  function addVar() {
+    updateMapping({ vars: { ...(fieldMapping.vars ?? {}), "": "" } })
+  }
+  function removeVar(index: number) {
+    updateMapping({ vars: Object.fromEntries(varsList.filter((_, i) => i !== index)) })
+  }
+
+  if (samples.length === 0) {
+    return (
+      <div className="rounded-md border border-dashed border-border bg-muted/20 p-2.5">
+        <label className="mb-1 block text-xs font-medium text-muted-foreground">
+          {t("incomingWebhook.mapLabel")}
+        </label>
+        <p className="text-[11px] text-muted-foreground">{t("incomingWebhook.mapNeedsCapture")}</p>
+      </div>
+    )
+  }
+
+  return (
+    <div className="space-y-2.5 rounded-md border border-border bg-muted/20 p-2.5">
+      <label className="block text-xs font-medium text-muted-foreground">
+        {t("incomingWebhook.mapLabel")}
+      </label>
+
+      <WebhookFieldPicker
+        label={t("incomingWebhook.mapPhone")}
+        required
+        value={fieldMapping.phone ?? ""}
+        fields={fields}
+        placeholder={t("incomingWebhook.mapPickField")}
+        onChange={(v) => updateMapping({ phone: v || undefined })}
+      />
+      <WebhookFieldPicker
+        label={t("incomingWebhook.mapName")}
+        value={fieldMapping.name ?? ""}
+        fields={fields}
+        placeholder={t("incomingWebhook.mapPickField")}
+        onChange={(v) => updateMapping({ name: v || undefined })}
+      />
+      <WebhookFieldPicker
+        label={t("incomingWebhook.mapTags")}
+        value={fieldMapping.tags ?? ""}
+        fields={fields}
+        placeholder={t("incomingWebhook.mapPickField")}
+        hint={t("incomingWebhook.mapTagsHint")}
+        onChange={(v) => updateMapping({ tags: v || undefined })}
+      />
+
+      <div>
+        <div className="mb-1 flex items-center justify-between">
+          <span className="text-[11px] font-medium text-muted-foreground">
+            {t("incomingWebhook.mapVars")}
+          </span>
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={addVar}
+            className="h-6 gap-1 text-[11px]"
+          >
+            <Plus className="h-3 w-3" />
+            {t("incomingWebhook.mapVarsAdd")}
+          </Button>
+        </div>
+        {varsList.length === 0 ? (
+          <p className="text-[11px] text-muted-foreground">{t("incomingWebhook.mapVarsEmpty")}</p>
+        ) : (
+          <div className="space-y-1.5">
+            {varsList.map(([key, sourcePath], i) => (
+              <div key={i} className="flex items-center gap-1.5">
+                <Input
+                  placeholder={t("incomingWebhook.mapVarsKeyPlaceholder")}
+                  value={key}
+                  onChange={(e) => updateVar(i, e.target.value, sourcePath)}
+                  className="h-7 flex-1 bg-background text-[11px]"
+                />
+                <span className="text-[11px] text-muted-foreground">&rarr;</span>
+                <select
+                  value={sourcePath}
+                  onChange={(e) => updateVar(i, key, e.target.value)}
+                  className="h-7 flex-[1.4] rounded-md border border-border bg-background px-1.5 text-[11px] text-foreground"
+                >
+                  <option value="">{t("incomingWebhook.mapPickField")}</option>
+                  {fields.map((f) => (
+                    <option key={f.path} value={f.path}>
+                      {f.path} ({f.preview})
+                    </option>
+                  ))}
+                </select>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => removeVar(i)}
+                  className="h-7 w-7 shrink-0"
+                >
+                  <Trash2 className="h-3 w-3" />
+                </Button>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      <p className="text-[11px] text-muted-foreground">{t("incomingWebhook.mapHint")}</p>
+    </div>
+  )
+}
+
+function WebhookFieldPicker({
+  label,
+  required,
+  value,
+  fields,
+  placeholder,
+  hint,
+  onChange,
+}: {
+  label: string
+  required?: boolean
+  value: string
+  fields: FlattenedField[]
+  placeholder: string
+  hint?: string
+  onChange: (v: string) => void
+}) {
+  return (
+    <div>
+      <label className="mb-1 block text-[11px] font-medium text-muted-foreground">
+        {label}
+        {required && <span className="text-destructive"> *</span>}
+      </label>
+      <select
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className="h-7 w-full rounded-md border border-border bg-background px-1.5 text-[11px] text-foreground"
+      >
+        <option value="">{placeholder}</option>
+        {fields.map((f) => (
+          <option key={f.path} value={f.path}>
+            {f.path} ({f.preview})
+          </option>
+        ))}
+      </select>
+      {hint && <p className="mt-1 text-[10px] text-muted-foreground">{hint}</p>}
     </div>
   )
 }
