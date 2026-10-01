@@ -75,7 +75,10 @@ describe('resolveWebhookFields', () => {
     expect(resolved).toEqual({
       phone: '+1',
       name: 'Jane',
+      email: null,
+      company: null,
       tags: [],
+      customFields: {},
       vars: { source: 'landing' },
     })
   })
@@ -91,6 +94,23 @@ describe('resolveWebhookFields', () => {
     expect(resolved.name).toBe('Jane Doe')
     expect(resolved.tags).toEqual(['vip', 'lead'])
     expect(resolved.vars).toEqual({ order_id: '1042' })
+  })
+
+  it('resolves email/company via dot-path mapping, distinct from vars', () => {
+    const resolved = resolveWebhookFields(
+      { ...body, email: 'jane@example.com', org: { name: 'Acme' } },
+      { phone: 'contact.phone', email: 'email', company: 'org.name' },
+    )
+    expect(resolved.email).toBe('jane@example.com')
+    expect(resolved.company).toBe('Acme')
+    // Not mirrored into vars unless separately mapped there too.
+    expect(resolved.vars).toEqual({})
+  })
+
+  it('leaves email/company null when not mapped', () => {
+    const resolved = resolveWebhookFields(body, { phone: 'contact.phone' })
+    expect(resolved.email).toBeNull()
+    expect(resolved.company).toBeNull()
   })
 
   it('returns a null phone when the mapped path does not resolve', () => {

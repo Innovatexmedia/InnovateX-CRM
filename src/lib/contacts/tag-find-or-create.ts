@@ -18,7 +18,9 @@ const DEFAULT_TAG_COLOR = '#3b82f6'
  * Matching is case-insensitive (`"Hot"` and `"hot"` resolve to the
  * same tag) since that's how a human skimming the Tags page expects
  * duplicates to be avoided, but the tag keeps whichever casing it was
- * first created with.
+ * first created with — so dedup below is a manual first-seen-wins
+ * loop, not `new Map(entries)` (which keeps the LAST-seen casing for
+ * a duplicate key, the opposite of what's documented and tested).
  *
  * Not transaction-safe against a concurrent duplicate-name insert —
  * `tags` has no unique constraint on (account_id, name) to upsert
@@ -38,12 +40,10 @@ export async function findOrCreateTagsByName(
     .filter(Boolean)
     .slice(0, 20) // same cap as MAX_VARS_KEYS elsewhere — a webhook payload's tag list is never meant to be large
 
-  // Dedupe case-insensitively, keeping the FIRST-seen casing — `new Map(entries)`
-  // keeps the LAST value for a repeated key, which is the opposite of what we want here.
   const byLower = new Map<string, string>()
   for (const name of trimmed) {
     const lower = name.toLowerCase()
-    if (!byLower.has(lower)) byLower.set(lower, name)
+    if (!byLower.has(lower)) byLower.set(lower, name) // first-seen casing wins
   }
   const wanted = Array.from(byLower.values())
   if (wanted.length === 0) return []

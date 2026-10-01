@@ -5,6 +5,7 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from "react"
@@ -1186,6 +1187,16 @@ type IncomingWebhookFieldMapping = {
   phone?: string
   name?: string
   tags?: string
+  /** Written onto the contact record (`contacts.email`/`.company`) —
+   *  unlike `vars` below, these show up in the Contacts list, not just
+   *  inside a message template. */
+  email?: string
+  company?: string
+  /** Destination `custom_fields.id` (this account's own user-defined
+   *  fields) → source path. Like `email`/`company`, written onto the
+   *  contact (via `contact_custom_values`), not just available inside
+   *  a message the way `vars` are. */
+  custom_fields?: Record<string, string>
   vars?: Record<string, string>
 }
 
@@ -1223,18 +1234,88 @@ function WebhookFieldMappingStep({
     onConfigChange({ ...config, field_mapping: { ...fieldMapping, ...patch } })
   }
 
-  const varsList = Object.entries(fieldMapping.vars ?? {})
+  // Custom-variable rows are tracked locally by a stable, locally
+  // generated `id` — NOT by their `key` text. The persisted shape
+  // (`field_mapping.vars`) is a plain `Record<string, string>`, which
+  // can't hold two entries with the same key; a naive
+  // `{ ...vars, "": "" }` on every "+ Add" therefore collapsed every
+  // not-yet-named row onto the same "" slot, silently overwriting
+  // whatever the user had just mapped (reported: "naya field add nahi
+  // ho raha" — adding a second variable before naming the first wiped
+  // it out instead of adding a new row). Keying by a local id lets any
+  // number of still-unnamed rows coexist while being edited; only rows
+  // that end up with a non-empty key are ever written back to
+  // `field_mapping.vars` — an unnamed row is inert either way (it
+  // couldn't be referenced as `{{vars.<name>}}` without a name), so
+  // dropping it from the persisted object until it has one changes
+  // nothing about what the automation actually does.
+  const [varsRows, setVarsRows] = useState<{ id: number; key: string; sourcePath: string }[]>(
+    () =>
+      Object.entries(fieldMapping.vars ?? {}).map(([key, sourcePath], index) => ({
+        id: index,
+        key,
+        sourcePath,
+      })),
+  )
+  // Started from the initial row count (computed via plain array indices
+  // above, not by reading the ref) rather than 0 — ref.current may only be
+  // read/written outside of render (eslint: react-hooks/refs), so the
+  // counter's starting value is derived from state we already have instead
+  // of being incremented while building that same state.
+  const nextVarId = useRef(varsRows.length)
 
-  function updateVar(index: number, key: string, sourcePath: string) {
-    const entries = [...varsList]
-    entries[index] = [key, sourcePath]
-    updateMapping({ vars: Object.fromEntries(entries) })
+  function syncVars(rows: { id: number; key: string; sourcePath: string }[]) {
+    setVarsRows(rows)
+    const vars = Object.fromEntries(
+      rows.filter((r) => r.key.trim().length > 0).map((r) => [r.key, r.sourcePath]),
+    )
+    updateMapping({ vars })
   }
   function addVar() {
-    updateMapping({ vars: { ...(fieldMapping.vars ?? {}), "": "" } })
+    syncVars([...varsRows, { id: nextVarId.current++, key: "", sourcePath: "" }])
   }
-  function removeVar(index: number) {
-    updateMapping({ vars: Object.fromEntries(varsList.filter((_, i) => i !== index)) })
+  function updateVar(id: number, key: string, sourcePath: string) {
+    syncVars(varsRows.map((r) => (r.id === id ? { ...r, key, sourcePath } : r)))
+  }
+  function removeVar(id: number) {
+    syncVars(varsRows.filter((r) => r.id !== id))
+  }
+
+  // Same local-id pattern as the vars rows above, and for the same
+  // reason: the destination side here is a `custom_field_id` picked
+  // from a dropdown rather than typed text, but an unpicked row is
+  // still `""` underneath until one is chosen, and two `""` rows would
+  // collide in a plain object exactly the way two blank var names did.
+  const { customFields } = useResources()
+  const [customFieldRows, setCustomFieldRows] = useState<
+    { id: number; fieldId: string; sourcePath: string }[]
+  >(() =>
+    Object.entries(fieldMapping.custom_fields ?? {}).map(([fieldId, sourcePath], index) => ({
+      id: index,
+      fieldId,
+      sourcePath,
+    })),
+  )
+  const nextCustomFieldRowId = useRef(customFieldRows.length)
+
+  function syncCustomFields(rows: typeof customFieldRows) {
+    setCustomFieldRows(rows)
+    const custom_fields = Object.fromEntries(
+      rows.filter((r) => r.fieldId.trim().length > 0).map((r) => [r.fieldId, r.sourcePath]),
+    )
+    updateMapping({ custom_fields })
+  }
+  function addCustomFieldRow() {
+    syncCustomFields([
+      ...customFieldRows,
+      { id: nextCustomFieldRowId.current++, fieldId: "", sourcePath: "" },
+    ])
+  }
+  function updateCustomFieldRow(id: number, fieldId: string, sourcePath: string) {
+    syncCustomFields(customFieldRows.map((r) => (r.id === id ? { ...r, fieldId, sourcePath } : r)))
+  }
+  function removeCustomFieldRow(id: number) {
+    syncCustomFields(customFieldRows.filter((r) => r.id !== id))
   }
 
   if (samples.length === 0) {
@@ -1277,6 +1358,90 @@ function WebhookFieldMappingStep({
         hint={t("incomingWebhook.mapTagsHint")}
         onChange={(v) => updateMapping({ tags: v || undefined })}
       />
+      <WebhookFieldPicker
+        label={t("incomingWebhook.mapEmail")}
+        value={fieldMapping.email ?? ""}
+        fields={fields}
+        placeholder={t("incomingWebhook.mapPickField")}
+        hint={t("incomingWebhook.mapEmailCompanyHint")}
+        onChange={(v) => updateMapping({ email: v || undefined })}
+      />
+      <WebhookFieldPicker
+        label={t("incomingWebhook.mapCompany")}
+        value={fieldMapping.company ?? ""}
+        fields={fields}
+        placeholder={t("incomingWebhook.mapPickField")}
+        onChange={(v) => updateMapping({ company: v || undefined })}
+      />
+
+      {customFields.length > 0 && (
+        <div>
+          <div className="mb-1 flex items-center justify-between">
+            <span className="text-[11px] font-medium text-muted-foreground">
+              {t("incomingWebhook.mapCustomFields")}
+            </span>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={addCustomFieldRow}
+              className="h-6 gap-1 text-[11px]"
+            >
+              <Plus className="h-3 w-3" />
+              {t("incomingWebhook.mapCustomFieldsAdd")}
+            </Button>
+          </div>
+          {customFieldRows.length === 0 ? (
+            <p className="text-[11px] text-muted-foreground">
+              {t("incomingWebhook.mapCustomFieldsEmpty")}
+            </p>
+          ) : (
+            <div className="space-y-1.5">
+              {customFieldRows.map((row) => (
+                <div key={row.id} className="flex items-center gap-1.5">
+                  <select
+                    value={row.fieldId}
+                    onChange={(e) => updateCustomFieldRow(row.id, e.target.value, row.sourcePath)}
+                    className="h-7 w-24 shrink-0 rounded-md border border-border bg-background px-1.5 text-[11px] text-foreground"
+                  >
+                    <option value="">{t("incomingWebhook.mapCustomFieldsPick")}</option>
+                    {customFields.map((f) => (
+                      <option key={f.id} value={f.id}>
+                        {f.field_name}
+                      </option>
+                    ))}
+                  </select>
+                  <span className="text-[11px] text-muted-foreground">&rarr;</span>
+                  <select
+                    value={row.sourcePath}
+                    onChange={(e) => updateCustomFieldRow(row.id, row.fieldId, e.target.value)}
+                    className="h-7 min-w-0 flex-1 rounded-md border border-border bg-background px-1.5 text-[11px] text-foreground"
+                  >
+                    <option value="">{t("incomingWebhook.mapPickField")}</option>
+                    {fields.map((f) => (
+                      <option key={f.path} value={f.path}>
+                        {f.path} ({f.preview})
+                      </option>
+                    ))}
+                  </select>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => removeCustomFieldRow(row.id)}
+                    className="h-7 w-7 shrink-0"
+                  >
+                    <Trash2 className="h-3 w-3" />
+                  </Button>
+                </div>
+              ))}
+            </div>
+          )}
+          <p className="mt-1 text-[11px] text-muted-foreground">
+            {t("incomingWebhook.mapCustomFieldsHint")}
+          </p>
+        </div>
+      )}
 
       <div>
         <div className="mb-1 flex items-center justify-between">
@@ -1294,23 +1459,32 @@ function WebhookFieldMappingStep({
             {t("incomingWebhook.mapVarsAdd")}
           </Button>
         </div>
-        {varsList.length === 0 ? (
+        {varsRows.length === 0 ? (
           <p className="text-[11px] text-muted-foreground">{t("incomingWebhook.mapVarsEmpty")}</p>
         ) : (
           <div className="space-y-1.5">
-            {varsList.map(([key, sourcePath], i) => (
-              <div key={i} className="flex items-center gap-1.5">
+            {varsRows.map((row) => (
+              <div key={row.id} className="flex items-center gap-1.5">
                 <Input
                   placeholder={t("incomingWebhook.mapVarsKeyPlaceholder")}
-                  value={key}
-                  onChange={(e) => updateVar(i, e.target.value, sourcePath)}
-                  className="h-7 flex-1 bg-background text-[11px]"
+                  value={row.key}
+                  onChange={(e) => updateVar(row.id, e.target.value, row.sourcePath)}
+                  // Fixed, non-shrinking width — this row's `select` (whose
+                  // option text can run long, e.g. "contact.phone
+                  // (+919999922222)") and the fixed-size arrow/delete button
+                  // were leaving this `flex-1` input with no room in a
+                  // narrow builder panel; combined with the base Input
+                  // component's own `min-w-0`, it could be squeezed all the
+                  // way down to just its rounded border — collapsing into
+                  // what looked like a tiny circle and making it impossible
+                  // to see (or click precisely into) what was typed.
+                  className="h-7 w-20 shrink-0 bg-background text-[11px]"
                 />
                 <span className="text-[11px] text-muted-foreground">&rarr;</span>
                 <select
-                  value={sourcePath}
-                  onChange={(e) => updateVar(i, key, e.target.value)}
-                  className="h-7 flex-[1.4] rounded-md border border-border bg-background px-1.5 text-[11px] text-foreground"
+                  value={row.sourcePath}
+                  onChange={(e) => updateVar(row.id, row.key, e.target.value)}
+                  className="h-7 min-w-0 flex-1 rounded-md border border-border bg-background px-1.5 text-[11px] text-foreground"
                 >
                   <option value="">{t("incomingWebhook.mapPickField")}</option>
                   {fields.map((f) => (
@@ -1323,7 +1497,7 @@ function WebhookFieldMappingStep({
                   type="button"
                   variant="ghost"
                   size="icon"
-                  onClick={() => removeVar(i)}
+                  onClick={() => removeVar(row.id)}
                   className="h-7 w-7 shrink-0"
                 >
                   <Trash2 className="h-3 w-3" />

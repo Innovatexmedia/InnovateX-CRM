@@ -42,7 +42,15 @@ export async function resolveConversationByPhone(
   db: SupabaseClient,
   accountId: string,
   phone: string,
-  name?: string | null
+  name?: string | null,
+  /** Optional `contacts.email` / `contacts.company` to set — currently
+   *  only the Incoming Webhook trigger's `field_mapping.email`/`company`
+   *  pass these (see `@/lib/automations/webhook-fields`); every other
+   *  caller omits them and behavior is unchanged. Written on create,
+   *  and on an existing contact only when the resolved value actually
+   *  differs, same as the `name` handling below — an update-only path
+   *  that never has these never issues an UPDATE for them at all. */
+  extra?: { email?: string | null; company?: string | null }
 ): Promise<ResolvedConversation> {
   // Raw integrator input: the leading `+` is required so the country
   // code is explicit — "4155551212" would otherwise be delivered to
@@ -94,11 +102,17 @@ export async function resolveConversationByPhone(
   const existing = await findExistingContact(db, accountId, sanitized);
   if (existing) {
     contactId = existing.id;
-    if (name && name !== existing.name) {
-      await db
-        .from('contacts')
-        .update({ name, updated_at: new Date().toISOString() })
-        .eq('id', existing.id);
+    const patch: Record<string, unknown> = {};
+    if (name && name !== existing.name) patch.name = name;
+    if (extra?.email && extra.email !== (existing as { email?: string | null }).email) {
+      patch.email = extra.email;
+    }
+    if (extra?.company && extra.company !== (existing as { company?: string | null }).company) {
+      patch.company = extra.company;
+    }
+    if (Object.keys(patch).length > 0) {
+      patch.updated_at = new Date().toISOString();
+      await db.from('contacts').update(patch).eq('id', existing.id);
     }
   } else {
     const { data: created, error: createErr } = await db
@@ -108,6 +122,8 @@ export async function resolveConversationByPhone(
         user_id: ownerUserId,
         phone: sanitized,
         name: name || sanitized,
+        ...(extra?.email ? { email: extra.email } : {}),
+        ...(extra?.company ? { company: extra.company } : {}),
       })
       .select('id')
       .single();

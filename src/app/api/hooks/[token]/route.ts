@@ -24,6 +24,11 @@
 // `tags` field is resolved into real CRM tags (created if they don't
 // exist yet) via `@/lib/contacts/tag-find-or-create`, not just handed
 // to steps as inert text — same as AiSensy/Intercom's own tag mapping.
+// `email`/`company` and any mapped `custom_fields` are written onto the
+// contact record itself (visible in the Contacts list / contact
+// detail, CSV export, segment filters) via
+// `@/lib/contacts/custom-field-write` — distinct from `vars`, which
+// only ever lives inside a rendered message.
 //
 // Every valid-token request is also recorded onto the automation's
 // `webhook_samples` column (rolling window, newest first) REGARDLESS of
@@ -55,6 +60,7 @@ import { resolveConversationByPhone } from '@/lib/whatsapp/resolve-conversation'
 import { SendMessageError } from '@/lib/whatsapp/send-message'
 import { addContactTagIfAbsent } from '@/lib/contacts/tag-write'
 import { findOrCreateTagsByName } from '@/lib/contacts/tag-find-or-create'
+import { upsertContactCustomValues } from '@/lib/contacts/custom-field-write'
 import { ok, fail, toApiErrorResponse, rateLimited } from '@/lib/api/v1/respond'
 import { checkRateLimit, RATE_LIMITS } from '@/lib/rate-limit'
 import type { IncomingWebhookTriggerConfig, WebhookSample } from '@/types'
@@ -182,6 +188,7 @@ export async function POST(
         automation.account_id,
         resolvedFields.phone,
         resolvedFields.name,
+        { email: resolvedFields.email, company: resolvedFields.company },
       )
     } catch (err) {
       if (err instanceof SendMessageError) {
@@ -215,6 +222,21 @@ export async function POST(
       } catch (err) {
         console.error('[hooks] tag resolution failed:', err)
       }
+    }
+
+    // Mapped custom fields (this account's own user-defined fields —
+    // Order ID, Lead Source, whatever) are written onto the contact the
+    // same way `email`/`company` are, via the shared, ownership-checked
+    // helper. Best-effort, same as tags above: never blocks the
+    // automation itself from running.
+    if (Object.keys(resolvedFields.customFields).length > 0) {
+      await upsertContactCustomValues(db, {
+        accountId: automation.account_id,
+        contactId: resolved.contactId,
+        values: resolvedFields.customFields,
+      }).catch((err) => {
+        console.error('[hooks] custom field write failed:', err)
+      })
     }
 
     // Also exposed as `{{vars.tags}}` (comma-joined) so a step can

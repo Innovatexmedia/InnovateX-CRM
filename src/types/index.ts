@@ -591,6 +591,26 @@ export interface IncomingWebhookTriggerConfig {
     /** Dot-path to a field holding either a comma-separated string or
      *  a JSON array of tag names. */
     tags?: string;
+    /** Unlike `vars` below, `email`/`company` are written onto the
+     *  CRM contact row itself (same `contacts.email` / `contacts.company`
+     *  columns the CSV import and manual contact editor use) — they
+     *  show up in the Contacts list, not just inside a message
+     *  template. Optional and independent of `vars`: mapping an email
+     *  here does NOT also make it available as `{{vars.email}}` unless
+     *  it's separately added to `vars` too. */
+    email?: string;
+    company?: string;
+    /** Destination `custom_fields.id` (one of this account's own
+     *  user-defined fields, e.g. "Order ID", "Lead Source") → dot-path
+     *  source in the received body. Written the same way the
+     *  `update_contact_field` step writes a `custom:<id>` destination —
+     *  an upsert into `contact_custom_values` on
+     *  `UNIQUE(contact_id, custom_field_id)` — so a value mapped here
+     *  shows up wherever that custom field already appears elsewhere in
+     *  the CRM (contact detail panel, CSV export, segment filters),
+     *  not just inside a message. See
+     *  `@/lib/contacts/custom-field-write`. */
+    custom_fields?: Record<string, string>;
     /** Destination var name (as used in `{{vars.*}}` inside steps) →
      *  dot-path source in the received body. */
     vars?: Record<string, string>;

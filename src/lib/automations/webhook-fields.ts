@@ -87,7 +87,17 @@ function previewValue(value: unknown): string {
 export interface ResolvedWebhookFields {
   phone: string | null
   name: string | null
+  /** Written onto the contact row (`contacts.email`) — distinct from
+   *  `vars`, which only ever lives inside a rendered message. */
+  email: string | null
+  /** Written onto the contact row (`contacts.company`). */
+  company: string | null
   tags: string[]
+  /** `custom_field_id -> resolved value` — upserted into
+   *  `contact_custom_values`, same as `email`/`company` are written
+   *  onto `contacts` (not just available inside a message, unlike
+   *  `vars`). See `@/lib/contacts/custom-field-write`. */
+  customFields: Record<string, string>
   vars: Record<string, string>
 }
 
@@ -116,10 +126,23 @@ function toTagList(v: unknown): string[] {
 
 export function resolveWebhookFields(
   body: Record<string, unknown>,
-  fieldMapping: { phone: string; name?: string; tags?: string; vars?: Record<string, string> } | undefined,
+  fieldMapping:
+    | {
+        phone: string
+        name?: string
+        tags?: string
+        email?: string
+        company?: string
+        custom_fields?: Record<string, string>
+        vars?: Record<string, string>
+      }
+    | undefined,
 ): ResolvedWebhookFields {
   if (!fieldMapping) {
     // Legacy fixed shape — unchanged from the original implementation.
+    // No `email`/`company` here: the original fixed contract never had
+    // them, and adding fields to it now would be a silent behavior
+    // change for whatever's already integrated against it.
     const phone = typeof body.phone === 'string' ? body.phone.trim() || null : null
     const name = typeof body.name === 'string' ? body.name.trim() || null : null
     const vars: Record<string, string> = {}
@@ -130,13 +153,17 @@ export function resolveWebhookFields(
         if (s !== null) vars[k] = s
       }
     }
-    return { phone, name, tags: [], vars }
+    return { phone, name, email: null, company: null, tags: [], customFields: {}, vars }
   }
 
   const phoneRaw = getByPath(body, fieldMapping.phone)
   const phone = typeof phoneRaw === 'string' ? phoneRaw.trim() || null : null
   const nameRaw = fieldMapping.name ? getByPath(body, fieldMapping.name) : undefined
   const name = typeof nameRaw === 'string' ? nameRaw.trim() || null : null
+  const emailRaw = fieldMapping.email ? getByPath(body, fieldMapping.email) : undefined
+  const email = typeof emailRaw === 'string' ? emailRaw.trim() || null : null
+  const companyRaw = fieldMapping.company ? getByPath(body, fieldMapping.company) : undefined
+  const company = typeof companyRaw === 'string' ? companyRaw.trim() || null : null
   const tags = fieldMapping.tags ? toTagList(getByPath(body, fieldMapping.tags)) : []
 
   const vars: Record<string, string> = {}
@@ -148,5 +175,14 @@ export function resolveWebhookFields(
     }
   }
 
-  return { phone, name, tags, vars }
+  const customFields: Record<string, string> = {}
+  if (fieldMapping.custom_fields) {
+    const entries = Object.entries(fieldMapping.custom_fields).slice(0, MAX_VARS_KEYS)
+    for (const [customFieldId, sourcePath] of entries) {
+      const s = toVarString(getByPath(body, sourcePath))
+      if (s !== null) customFields[customFieldId] = s
+    }
+  }
+
+  return { phone, name, email, company, tags, customFields, vars }
 }
