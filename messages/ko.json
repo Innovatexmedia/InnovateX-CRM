@@ -1107,6 +1107,7 @@
         "unknown": "{id} (알 수 없는 태그)"
       },
       "fields": {
+        "phone": "전화번호",
         "name": "이름",
         "email": "이메일",
         "company": "회사",
@@ -1220,7 +1221,7 @@
         "mapVars": "사용자 지정 변수",
         "mapVarsAdd": "추가",
         "mapVarsEmpty": "아직 매핑된 사용자 지정 변수가 없습니다.",
-        "mapVarsKeyPlaceholder": "vars.order_id",
+        "mapVarsKeyPlaceholder": "order_id",
         "mapPickField": "필드 선택…",
         "mapHint": "이 자동화를 활성화하려면 전화번호 매핑이 필요합니다. 매핑하지 않고 두면 기존의 고정 phone/name/vars 형식을 계속 사용합니다.",
         "mapTagsHint": "이름으로 기존 태그와 매칭되며(대소문자 구분 안 함), 없으면 새 태그가 자동으로 생성됩니다.",

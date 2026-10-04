@@ -404,6 +404,7 @@ function ContactFieldSelect({
       onChange={(e) => onChange(e.target.value)}
       className={SELECT_CLASS}
     >
+      <option value="phone">{t("fields.phone")}</option>
       <option value="name">{t("fields.name")}</option>
       <option value="email">{t("fields.email")}</option>
       <option value="company">{t("fields.company")}</option>

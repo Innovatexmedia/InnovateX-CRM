@@ -665,7 +665,7 @@ export interface AssignConversationStepConfig {
 
 export interface UpdateContactFieldStepConfig {
   /**
-   * Either a built-in contact column (`name` | `email` | `company`) or a
+   * Either a built-in contact column (`phone` | `name` | `email` | `company`) or a
    * custom field encoded as `custom:<custom_field_id>`. The `custom:` prefix
    * is how the engine distinguishes a `contact_custom_values` write from a
    * direct `contacts` column update. Older configs store the bare column name,

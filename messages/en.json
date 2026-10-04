@@ -1107,6 +1107,7 @@
         "unknown": "{id} (unknown tag)"
       },
       "fields": {
+        "phone": "Phone Number",
         "name": "Name",
         "email": "Email",
         "company": "Company",
@@ -1220,7 +1221,7 @@
         "mapVars": "Custom variables",
         "mapVarsAdd": "Add",
         "mapVarsEmpty": "No custom variables mapped yet.",
-        "mapVarsKeyPlaceholder": "vars.order_id",
+        "mapVarsKeyPlaceholder": "order_id",
         "mapPickField": "Pick a field…",
         "mapHint": "Phone is required to activate this automation. Leave everything unmapped to keep using the original fixed phone/name/vars shape instead.",
         "mapTagsHint": "Matched to an existing tag by name (case-insensitive), or a new one is created automatically.",

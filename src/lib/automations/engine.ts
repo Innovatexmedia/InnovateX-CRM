@@ -27,6 +27,38 @@ import { validateInteractivePayload } from '@/lib/whatsapp/interactive'
 import { isDeliverableUrl } from '@/lib/webhooks/ssrf'
 
 // ------------------------------------------------------------
+// Built-in contact fields writable from automations
+// ------------------------------------------------------------
+
+export const BUILT_IN_CONTACT_FIELDS = [
+  'phone',
+  'name',
+  'email',
+  'company',
+] as const
+
+export type BuiltInContactField = (typeof BUILT_IN_CONTACT_FIELDS)[number]
+
+const BUILT_IN_CONTACT_FIELD_SET: ReadonlySet<string> = new Set(BUILT_IN_CONTACT_FIELDS)
+
+/**
+ * Normalizes a phone value for writes from automations. Returns null when
+ * the value is not a plausible phone number (8-15 digits, E.164 limit).
+ *
+ * NOTE: deliberately NOT `parseInternationalPhone` (see phone-utils.ts):
+ * that parser requires a leading `+`, whereas values reaching this step are
+ * often digits-only (e.g. `{{ vars.phone }}` from a webhook, Meta wa_id
+ * style `919876543210`). Do not swap it in without proving compatibility.
+ */
+function normalizePhoneForAutomation(raw: string): string | null {
+  const trimmed = raw.trim()
+  if (!trimmed) return null
+  const digits = trimmed.replace(/\D/g, '')
+  if (digits.length < 8 || digits.length > 15) return null
+  return trimmed.startsWith('+') ? `+${digits}` : digits
+}
+
+// ------------------------------------------------------------
 // Public API
 // ------------------------------------------------------------
 
@@ -605,18 +637,51 @@ async function runStep(step: AutomationStep, args: ExecuteArgs): Promise<string>
         return `custom field updated`
       }
 
-      const allowed = new Set(['name', 'email', 'company'])
-      if (!allowed.has(cfg.field)) {
+      if (!BUILT_IN_CONTACT_FIELD_SET.has(cfg.field)) {
         return `field ${cfg.field} not writable from automations`
       }
+
+      let valueToWrite: string = value
+
+      if (cfg.field === 'phone') {
+        const normalized = normalizePhoneForAutomation(value)
+        if (!normalized) throw new Error('Invalid phone number')
+
+        // Another contact in this account already owns this number? Compare
+        // on the digits-only key — the same key the DB's unique index
+        // (`phone_normalized`, migration 022) enforces — so "+9198…" and
+        // "9198…" are recognised as the same number even though contacts
+        // are stored in both formats.
+        const { data: clash, error: clashErr } = await db
+          .from('contacts')
+          .select('id')
+          .eq('account_id', args.automation.account_id)
+          .eq('phone_normalized', normalized.replace(/\D/g, ''))
+          .neq('id', args.contactId)
+          .limit(1)
+        if (clashErr) throw new Error(`phone uniqueness check failed: ${clashErr.message}`)
+        if (Array.isArray(clash) && clash.length > 0) {
+          throw new Error('Phone number already belongs to another contact')
+        }
+        valueToWrite = normalized
+      }
+
       // Defense in depth: scope the service-role write to the account so
       // a future caller that skips the entry-point ownership guard still
       // cannot write across tenants.
-      await db
+      const { error: updateErr } = await db
         .from('contacts')
-        .update({ [cfg.field]: value, updated_at: new Date().toISOString() })
+        .update({ [cfg.field]: valueToWrite, updated_at: new Date().toISOString() })
         .eq('id', args.contactId)
         .eq('account_id', args.automation.account_id)
+
+      if (updateErr && cfg.field === 'phone') {
+        // Race: another writer took the number between the check and the update.
+        if (updateErr.code === '23505') {
+          throw new Error('Phone number already belongs to another contact')
+        }
+        throw new Error(`phone update failed: ${updateErr.message}`)
+      }
       return `${cfg.field} updated`
     }
 

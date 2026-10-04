@@ -1107,6 +1107,7 @@
         "unknown": "{id} (tag desconhecida)"
       },
       "fields": {
+        "phone": "Número de telefone",
         "name": "Nome",
         "email": "E-mail",
         "company": "Empresa",
@@ -1220,7 +1221,7 @@
         "mapVars": "Variáveis personalizadas",
         "mapVarsAdd": "Adicionar",
         "mapVarsEmpty": "Nenhuma variável personalizada mapeada ainda.",
-        "mapVarsKeyPlaceholder": "vars.order_id",
+        "mapVarsKeyPlaceholder": "order_id",
         "mapPickField": "Escolha um campo…",
         "mapHint": "O telefone é obrigatório para ativar esta automação. Deixe tudo sem mapear para continuar usando o formato fixo original de phone/name/vars.",
         "mapTagsHint": "É comparado a uma tag existente pelo nome (sem diferenciar maiúsculas/minúsculas), ou uma nova é criada automaticamente.",

@@ -9,7 +9,20 @@ const h = vi.hoisted(() => ({
     automations: [] as Record<string, unknown>[],
     steps: [] as Record<string, unknown>[],
     fromCalls: [] as string[],
-    updateCalls: [] as { table: string; filters: [string, string, unknown][] }[],
+    updateCalls: [] as {
+      table: string
+      filters: [string, string, unknown][]
+      payload?: unknown
+    }[],
+    /** Rows the phone-uniqueness lookup (filtered on phone_normalized)
+     *  returns — non-empty simulates another contact owning the number. */
+    phoneClash: [] as { id: string }[],
+    /** Filters of the last phone-uniqueness lookup. */
+    clashFilters: [] as [string, string, unknown][],
+    /** Error the contacts UPDATE resolves with (e.g. a 23505 race). */
+    contactUpdateError: null as { code?: string; message: string } | null,
+    /** Every `steps_executed` array written to automation_logs. */
+    stepResultWrites: [] as { step_type: string; status: string; detail?: string }[][],
     upsertCalls: [] as { table: string; payload: unknown }[],
     logInserts: [] as Record<string, unknown>[],
     logUpdates: [] as Record<string, unknown>[],
@@ -31,8 +44,13 @@ vi.mock("./admin-client", () => {
     const { table, type } = ops;
     if (table === "contacts") {
       if (type === "update") {
-        state.updateCalls.push({ table, filters: ops.filters });
-        return { data: null, error: null };
+        state.updateCalls.push({ table, filters: ops.filters, payload: ops.payload });
+        return { data: null, error: state.contactUpdateError };
+      }
+      // phone-uniqueness lookup: resolves like a real array query
+      if (ops.filters.some(([, k]) => k === "phone_normalized")) {
+        state.clashFilters = ops.filters;
+        return { data: state.phoneClash, error: null };
       }
       // ownership guard / condition read
       return { data: state.owned, error: null };
@@ -55,7 +73,13 @@ vi.mock("./admin-client", () => {
         return { data: { id: "log1" }, error: null };
       }
       if (type === "update") {
-        state.logUpdates.push(ops.payload as Record<string, unknown>);
+        const payload = ops.payload as Record<string, unknown>;
+        state.logUpdates.push(payload);
+        if (Array.isArray(payload.steps_executed)) {
+          state.stepResultWrites.push(
+            payload.steps_executed as { step_type: string; status: string; detail?: string }[],
+          );
+        }
         return { data: null, error: null };
       }
       return { data: { steps_executed: [], status: "success" }, error: null };
@@ -90,6 +114,7 @@ vi.mock("./admin-client", () => {
       delete: () => ((ops.type = "delete"), b),
       upsert: (p: unknown) => ((ops.type = "upsert"), (ops.payload = p), b),
       eq: (k: string, v: unknown) => (ops.filters.push(["eq", k, v]), b),
+      neq: (k: string, v: unknown) => (ops.filters.push(["neq", k, v]), b),
       gte: () => b,
       is: () => b,
       order: () => b,
@@ -131,6 +156,10 @@ beforeEach(() => {
   h.state.steps = [];
   h.state.fromCalls = [];
   h.state.updateCalls = [];
+  h.state.phoneClash = [];
+  h.state.clashFilters = [];
+  h.state.contactUpdateError = null;
+  h.state.stepResultWrites = [];
   h.state.upsertCalls = [];
   h.state.logInserts = [];
   h.state.logUpdates = [];
@@ -292,6 +321,92 @@ describe("update_contact_field — custom fields", () => {
 
     expect(h.state.upsertCalls).toHaveLength(0);
     expect(h.state.updateCalls).toHaveLength(0);
+  });
+});
+
+describe("update_contact_field — phone", () => {
+  async function runPhone(value: string) {
+    h.state.owned = { id: "c1" };
+    h.state.automations = [automationWithUpdateStep()];
+    h.state.steps = [customStep("phone", value)];
+    await runAutomationsForTrigger({
+      accountId: ACCOUNT,
+      triggerType: "new_message_received",
+      contactId: "c1",
+      context: {},
+    });
+  }
+  const lastStepResult = () => h.state.stepResultWrites.flat().at(-1);
+
+  it("updates the phone for a valid number (keeps the leading +)", async () => {
+    await runPhone("+919876543210");
+
+    expect(h.state.updateCalls).toHaveLength(1);
+    expect(h.state.updateCalls[0].payload).toMatchObject({ phone: "+919876543210" });
+    expect(h.state.updateCalls[0].filters).toContainEqual(["eq", "id", "c1"]);
+    expect(h.state.updateCalls[0].filters).toContainEqual(["eq", "account_id", ACCOUNT]);
+    expect(lastStepResult()).toMatchObject({ status: "success", detail: "phone updated" });
+  });
+
+  it("stores a digits-only number as digits-only", async () => {
+    await runPhone("919876543210");
+
+    expect(h.state.updateCalls[0].payload).toMatchObject({ phone: "919876543210" });
+  });
+
+  it("rejects an invalid phone and writes nothing", async () => {
+    await runPhone("abc");
+
+    expect(h.state.updateCalls).toHaveLength(0);
+    expect(lastStepResult()).toMatchObject({
+      status: "failed",
+      detail: "Invalid phone number",
+    });
+  });
+
+  it("rejects a number already owned by another contact, leaving it untouched", async () => {
+    h.state.phoneClash = [{ id: "c2" }];
+    await runPhone("+919876543210");
+
+    expect(h.state.updateCalls).toHaveLength(0);
+    expect(lastStepResult()).toMatchObject({
+      status: "failed",
+      detail: "Phone number already belongs to another contact",
+    });
+  });
+
+  it("checks uniqueness on the digits-only key, within the account, excluding self", async () => {
+    // "+" form typed; a stored twin may be digits-only, so match on digits.
+    await runPhone("+919876543210");
+
+    expect(h.state.clashFilters).toContainEqual(["eq", "account_id", ACCOUNT]);
+    expect(h.state.clashFilters).toContainEqual(["eq", "phone_normalized", "919876543210"]);
+    expect(h.state.clashFilters).toContainEqual(["neq", "id", "c1"]);
+  });
+
+  it("maps a DB unique violation (23505 race) to the duplicate-phone error", async () => {
+    h.state.contactUpdateError = { code: "23505", message: "duplicate key" };
+    await runPhone("+919876543210");
+
+    expect(lastStepResult()).toMatchObject({
+      status: "failed",
+      detail: "Phone number already belongs to another contact",
+    });
+  });
+
+  it("still lets name/email/company update with no phone checks", async () => {
+    h.state.owned = { id: "c1" };
+    h.state.automations = [automationWithUpdateStep()];
+    h.state.steps = [customStep("name", "Jane")];
+    await runAutomationsForTrigger({
+      accountId: ACCOUNT,
+      triggerType: "new_message_received",
+      contactId: "c1",
+      context: {},
+    });
+
+    expect(h.state.updateCalls).toHaveLength(1);
+    expect(h.state.updateCalls[0].payload).toMatchObject({ name: "Jane" });
   });
 });
 
