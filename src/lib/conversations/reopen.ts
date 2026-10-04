@@ -26,7 +26,20 @@ export async function reopenClosedConversation(
 
   const { error } = await db
     .from('conversations')
-    .update({ status: 'open', updated_at: new Date().toISOString() })
+    .update({
+      status: 'open',
+      updated_at: new Date().toISOString(),
+      // A customer returning to a closed (resolved) thread starts a FRESH
+      // AI session: clear the sticky handoff pause, give the bot a new
+      // reply budget and drop the stale handoff note. Ownership is left
+      // alone on purpose — if a human is still assigned, the bot stays
+      // out (an assigned thread always belongs to that person); once the
+      // thread is unassigned the bot resumes. Without this, a single
+      // handoff would silence the bot on that customer forever.
+      ai_autoreply_disabled: false,
+      ai_reply_count: 0,
+      ai_handoff_summary: null,
+    })
     .eq('id', conversation.id)
     // Re-checked in SQL, not just in the `if` above: the caller's row was
     // read earlier in the request, so two concurrent inbound deliveries

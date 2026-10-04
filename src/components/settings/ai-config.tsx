@@ -454,26 +454,43 @@ export function AiConfig() {
 
             <div className="flex items-center justify-between gap-4">
               <div>
-                <Label htmlFor="ai-max">{t('maxAutoReplies')}</Label>
+                <Label htmlFor="ai-unlimited">{t('maxAutoRepliesUnlimited')}</Label>
                 <p className="text-xs text-muted-foreground">
-                  {t('maxAutoRepliesDesc')}
+                  {t('maxAutoRepliesUnlimitedDesc')}
                 </p>
               </div>
-              <Input
-                id="ai-max"
-                type="number"
-                min={1}
-                max={20}
-                value={maxPerConversation}
-                onChange={(e) =>
-                  setMaxPerConversation(
-                    Math.min(20, Math.max(1, Number(e.target.value) || 1)),
-                  )
-                }
+              <Switch
+                id="ai-unlimited"
+                checked={maxPerConversation === 0}
+                onCheckedChange={(on) => setMaxPerConversation(on ? 0 : 20)}
                 disabled={disabled || !autoReplyEnabled}
-                className="w-20"
               />
             </div>
+
+            {maxPerConversation !== 0 && (
+              <div className="flex items-center justify-between gap-4">
+                <div>
+                  <Label htmlFor="ai-max">{t('maxAutoReplies')}</Label>
+                  <p className="text-xs text-muted-foreground">
+                    {t('maxAutoRepliesDesc')}
+                  </p>
+                </div>
+                <Input
+                  id="ai-max"
+                  type="number"
+                  min={1}
+                  max={1000}
+                  value={maxPerConversation}
+                  onChange={(e) =>
+                    setMaxPerConversation(
+                      Math.min(1000, Math.max(1, Math.floor(Number(e.target.value) || 1))),
+                    )
+                  }
+                  disabled={disabled || !autoReplyEnabled}
+                  className="w-20"
+                />
+              </div>
+            )}
 
             <div className="space-y-2">
               <Label htmlFor="ai-handoff">{t('handoffTo')}</Label>

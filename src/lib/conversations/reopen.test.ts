@@ -59,6 +59,18 @@ describe('reopenClosedConversation', () => {
     expect(calls[0].payload).toHaveProperty('updated_at')
   })
 
+  it('starts a fresh AI session: clears the handoff pause, count and note', async () => {
+    const { client, calls } = stubClient()
+    await reopenClosedConversation(client, { id: 'conv-1', status: 'closed' })
+    expect(calls[0].payload).toMatchObject({
+      ai_autoreply_disabled: false,
+      ai_reply_count: 0,
+      ai_handoff_summary: null,
+    })
+    // Ownership is not touched — an assigned agent keeps the thread.
+    expect(calls[0].payload).not.toHaveProperty('assigned_agent_id')
+  })
+
   it('guards the write on the row still being closed', async () => {
     // The caller read the row earlier in the request. Without this filter,
     // two concurrent inbound deliveries both holding a stale
