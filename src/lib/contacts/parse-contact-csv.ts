@@ -46,6 +46,33 @@ export interface ParseContactCsvResult {
   hasCompanyColumn: boolean;
 }
 
+/**
+ * Add the missing `+` to an Indian number in a CSV cell.
+ *
+ * Spreadsheets (Google Sheets, Excel) treat a phone column as numbers and
+ * silently drop a typed leading `+`, so a sheet of "918744853585" can't be
+ * fixed by the user. Import-only convenience — the strict `+` requirement
+ * (issue #586) stays everywhere else (API, broadcast, manual form).
+ *
+ * Only two unambiguous Indian shapes are rewritten:
+ *   - 12 digits, `91` + a mobile number starting 6-9  → "+91…"
+ *   - 10 digits starting 6-9 (national mobile)         → "+91…"
+ * Anything else — including numbers that already start with `+` — is
+ * returned unchanged, so other countries still need an explicit `+` and
+ * malformed numbers still surface as "invalid phone".
+ */
+export function normalizeImportPhone(raw: string): string {
+  const value = raw.trim();
+  if (!value || value.startsWith('+')) return value;
+
+  const compact = value.replace(/[\s().-]/g, '');
+  if (!/^\d+$/.test(compact)) return value;
+
+  if (/^91[6-9]\d{9}$/.test(compact)) return `+${compact}`;
+  if (/^[6-9]\d{9}$/.test(compact)) return `+91${compact}`;
+  return value;
+}
+
 export function parseContactCsv(text: string): ParseContactCsvResult {
   const lines = text.trim().split(/\r?\n/);
   if (lines.length < 2) {
@@ -89,7 +116,9 @@ export function parseContactCsv(text: string): ParseContactCsvResult {
     // it there means the import result can tell the user "N contacts
     // had no phone" instead of the row just vanishing with the total
     // row count silently short of what's actually in the file.
-    const phone = values[phoneIdx]?.replace(/["']/g, '').trim() ?? '';
+    const phone = normalizeImportPhone(
+      values[phoneIdx]?.replace(/["']/g, '').trim() ?? '',
+    );
 
     rows.push({
       phone,
