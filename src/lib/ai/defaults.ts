@@ -23,9 +23,11 @@ export const AI_PROVIDER_DEFAULT_MODEL: Record<AiProvider, string> = {
  */
 export const HANDOFF_SENTINEL = '[[HANDOFF]]'
 
-/** Cap on generated reply length — keeps WhatsApp replies short and
- *  bounds token spend on the caller's own key. */
-export const MAX_OUTPUT_TOKENS = 1024
+/** Cap on generated reply length — bounds token spend on the caller's
+ *  own key. Roomy on purpose: reasoning-style models (e.g. Gemini
+ *  "thinking") spend part of this budget before writing, and a too-tight
+ *  cap yields an EMPTY reply. Brevity comes from the prompt, not this. */
+export const MAX_OUTPUT_TOKENS = 2048
 
 const DEFAULT_REQUEST_TIMEOUT_MS = 30_000
 const DEFAULT_CONTEXT_MESSAGE_LIMIT = 20
@@ -72,12 +74,18 @@ export function buildSystemPrompt(args: {
   ]
 
   if (mode === 'auto_reply') {
+    // Handoff is for ONE case only: the customer explicitly asks for a
+    // person. Everything else (unknown answer, upset customer, odd
+    // request) keeps the conversation going — a bot that bows out the
+    // moment it is unsure looks broken and strands the customer.
     const handoffWhen =
-      'If you cannot confidently and safely help — the customer explicitly asks for a human or an agent (in any language), is upset or complaining, or the request needs information you do not have'
+      'The ONLY time you hand off is when the customer explicitly asks to speak to a human, an agent, or a person (in any language)'
+    const keepGoing =
+      "In every other case keep the conversation going yourself: if you don't know something, say you'll check and follow up and ask a helpful question; if the customer is upset, acknowledge it politely and keep helping. Never invent facts."
     parts.push(
       handoffAgentName
-        ? `You are replying automatically with no human in the loop. ${handoffWhen} — hand off: write ONE short sentence in the customer's language saying that ${handoffAgentName} has been assigned to their chat and will reply here shortly (use the name exactly as written, add nothing else), followed by ${HANDOFF_SENTINEL} on the same line. A human agent will then take over. Prefer handing off over guessing.`
-        : `You are replying automatically with no human in the loop. ${handoffWhen} — reply with exactly ${HANDOFF_SENTINEL} and nothing else. A human agent will then take over. Prefer handing off over guessing.`,
+        ? `You are replying automatically with no human in the loop. ${handoffWhen} — then write ONE short sentence in the customer's language saying that ${handoffAgentName} has been assigned to their chat and will reply here shortly (use the name exactly as written, add nothing else), followed by ${HANDOFF_SENTINEL} on the same line. ${keepGoing}`
+        : `You are replying automatically with no human in the loop. ${handoffWhen} — then reply with exactly ${HANDOFF_SENTINEL} and nothing else. ${keepGoing}`,
     )
   }
 
@@ -88,7 +96,7 @@ export function buildSystemPrompt(args: {
   if (knowledge && knowledge.length > 0) {
     const fallback =
       mode === 'auto_reply'
-        ? `if they don't cover the question, do not guess — reply with exactly ${HANDOFF_SENTINEL} so a human can help`
+        ? `if they don't cover the question, do not guess — say you'll check and follow up, and keep the conversation going`
         : "if they don't cover the question, don't guess — say you'll check and follow up"
     parts.push(
       'Knowledge base — excerpts from the business\'s own documentation, retrieved for this question. ' +

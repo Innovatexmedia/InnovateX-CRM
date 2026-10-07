@@ -32,6 +32,18 @@ vi.mock("@supabase/ssr", () => ({
         return { data: { user: mockUser } };
       },
     },
+    // The approval gate looks the signed-in user's profile + account up;
+    // an approved account is the normal case for these cookie tests.
+    from: () => {
+      const q: Record<string, unknown> = {
+        select: () => q,
+        eq: () => q,
+        maybeSingle: async () => ({
+          data: { account_id: "acct-1", approval_status: "approved" },
+        }),
+      };
+      return q;
+    },
   }),
 }));
 

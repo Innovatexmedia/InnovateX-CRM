@@ -51,6 +51,17 @@ describe('detectHumanRequest — ordinary messages must NOT trigger', () => {
     'my order id is 1042',
     'thank you so much',
     'kya price hai?',
+    // Everyday phrases that used to wrongly hand the chat to a human
+    'I need an executive summary of the workshop',
+    'I want to be an agent for your company',
+    'I want to get the owner details of this flat',
+    'I am not participated',
+    'Do you want to join the workshop again? Yes',
+    'I need support with the payment link',
+    'can you call me tomorrow at 5pm',
+    'send me the details of the team',
+    'I will get someone to join with me',
+    'please share the staff schedule',
     'mujhe product chahiye',
     '',
   ]

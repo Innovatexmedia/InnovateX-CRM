@@ -18,15 +18,23 @@
  * could have answered, so the bias is toward precision.
  */
 
-// person-words a customer might ask for
+// Words for "a person" that are fine after a talk/connect-style verb.
 const EN_PERSON =
-  '(?:human|real person|live person|person|agent|representative|rep|executive|manager|supervisor|someone|somebody|team member|support|customer care|customer service|staff|owner)'
+  '(?:human|real person|live person|person|agent|representative|executive|manager|supervisor|someone|somebody|team member|customer care|customer service|owner|staff)'
 const EN_VERB =
-  '(?:talk|speak|chat|connect|transfer|escalate|get|put|need|want|assign|call|reach|contact)'
+  '(?:talk|speak|chat|connect|transfer|escalate|assign|call|reach|contact)'
+// After a softer verb ("I need / want / get") only an UNMISTAKABLE
+// request counts — "I need an executive summary" or "I want to be an
+// agent" must not hand the chat to a human.
+const EN_STRONG_PERSON =
+  '(?:human|real person|live person|human agent|live agent|representative|customer care|customer service|customer support)'
+const EN_SOFT_VERB = '(?:need|want|get|put|require)'
 
 const PATTERNS: RegExp[] = [
   // "I want to talk to a human", "connect me with an agent", "speak to your manager"
   new RegExp(`\\b${EN_VERB}\\b[^.!?\\n]{0,30}\\b${EN_PERSON}\\b`, 'i'),
+  // "I need a human", "want a live agent", "get me a real person"
+  new RegExp(`\\b${EN_SOFT_VERB}\\b[^.!?\\n]{0,30}\\b${EN_STRONG_PERSON}\\b`, 'i'),
   // "human please", "agent please", "live agent", "real person"
   /\b(?:human|agent|representative|executive|manager)\s+(?:please|pls|plz)\b/i,
   /\b(?:live|human|real)\s+(?:agent|person|support|help)\b/i,

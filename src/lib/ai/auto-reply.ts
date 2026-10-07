@@ -237,25 +237,19 @@ export async function dispatchInboundToAiReply(
       handoffAgentName: agent?.name ?? null,
     })
 
-    // A provider failure (bad key, outage, rate limit, empty reply) must
-    // never be silent: the customer would just be ignored and nobody
-    // would know why. Don't retry (a retry storm on a down provider
-    // helps nobody) and don't pretend the AI answered — pause the bot on
-    // this thread and hand it to a human, with the cause in the internal
-    // note.
+    // A provider failure (bad key, outage, rate limit) is usually
+    // momentary. It must NOT pause the bot or assign the chat: that turned
+    // one hiccup into a permanently silent thread plus a confusing
+    // "I've assigned X" message the customer never asked for. Log it,
+    // don't retry (a retry storm on a down provider helps nobody), and
+    // leave the thread untouched so the bot answers the customer's next
+    // message normally. The inbound is still visible in the inbox.
     let generated: Awaited<ReturnType<typeof generateReply>>
     try {
-      generated = await generateReply({ config, systemPrompt, messages })
+      generated = await generateWithRetry({ config, systemPrompt, messages })
     } catch (err) {
       const code = (err as { code?: string } | null)?.code ?? 'ai_error'
-      console.error(`[ai auto-reply] generation failed (${code}) — handing off:`, err)
-      await performHandoff({
-        ...handoffCtx,
-        reason: 'error',
-        noticeText: null,
-        agent,
-        detail: code,
-      })
+      console.error(`[ai auto-reply] generation failed (${code}) — leaving the bot active:`, err)
       return
     }
     const { text, handoff, usage } = generated
@@ -274,13 +268,17 @@ export async function dispatchInboundToAiReply(
       usage,
     })
 
-    if (handoff || !text) {
-      // The model can't (or shouldn't) answer. When it handed off while
-      // an agent is configured it was asked to write the announcement in
-      // the customer's language — trust it only if it passes validation,
-      // otherwise the fixed template is used.
+    // An empty answer with no handoff marker is a model hiccup, not a
+    // request for a human: stay active and answer the next message.
+    if (!handoff && !text) return
+
+    if (handoff) {
+      // The model asked for a human. When an agent is configured it was
+      // asked to write the announcement in the customer's language —
+      // trust it only if it passes validation, otherwise the fixed
+      // template is used.
       const modelNotice =
-        handoff && agent?.name && isValidHandoffNotice(text, agent.name)
+        agent?.name && isValidHandoffNotice(text, agent.name)
           ? text.trim()
           : null
       await performHandoff({
@@ -334,6 +332,37 @@ export async function dispatchInboundToAiReply(
     })
   } catch (err) {
     console.error('[ai auto-reply] dispatch failed:', err)
+  }
+}
+
+/** Provider failures worth ONE quick retry: momentary by nature. A bad
+ *  key / quota / 4xx is not — retrying those only burns time. */
+const TRANSIENT_CODES = new Set(['timeout', 'network_error', 'empty_response'])
+const RETRY_DELAY_MS = 600
+
+function isTransientAiError(err: unknown): boolean {
+  const e = err as { code?: string; status?: number } | null
+  if (e?.code && TRANSIENT_CODES.has(e.code)) return true
+  const status = e?.status
+  return typeof status === 'number' && (status === 429 || status >= 500)
+}
+
+/**
+ * One reply attempt plus a single retry for momentary provider hiccups
+ * (empty answer, timeout, network blip, 429/5xx). Most "the AI stopped
+ * answering" reports are exactly one of these, so the customer should
+ * not feel them. Anything else (bad key, bad request) fails at once.
+ */
+async function generateWithRetry(
+  args: Parameters<typeof generateReply>[0],
+): Promise<Awaited<ReturnType<typeof generateReply>>> {
+  try {
+    return await generateReply(args)
+  } catch (err) {
+    if (!isTransientAiError(err)) throw err
+    console.warn('[ai auto-reply] transient AI failure — retrying once:', err)
+    await new Promise((r) => setTimeout(r, RETRY_DELAY_MS))
+    return generateReply(args)
   }
 }
 

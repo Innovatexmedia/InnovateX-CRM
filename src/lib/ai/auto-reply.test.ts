@@ -524,10 +524,11 @@ describe('dispatchInboundToAiReply — handoff', () => {
     expect(claim.filters).toContainEqual(['eq', 'ai_autoreply_disabled', false])
   })
 
-  it('treats an empty model answer (no text, no marker) as a handoff', async () => {
+  it('an empty model answer (no text, no marker) does NOT pause or assign — the bot stays active', async () => {
     h.generateReply.mockResolvedValue({ text: '', handoff: false })
     await dispatchInboundToAiReply(ARGS)
-    expect(updatesWith('ai_handoff_summary')).toHaveLength(1)
+    expect(h.state.updates).toHaveLength(0)
+    expect(h.engineSendText).not.toHaveBeenCalled()
   })
 })
 
@@ -648,8 +649,8 @@ describe('dispatchInboundToAiReply — after a handoff the bot stays out', () =>
   })
 })
 
-describe('dispatchInboundToAiReply — provider failure is never silent', () => {
-  it('hands the chat to a human, records the cause, and does not retry', async () => {
+describe('dispatchInboundToAiReply — provider failure keeps the bot active', () => {
+  it('does not pause, assign or announce; does not retry; uses no reply slot', async () => {
     const err = vi.spyOn(console, 'error').mockImplementation(() => {})
     h.loadAiConfig.mockResolvedValue(aiConfig({ handoffAgentId: 'agent-7' }))
     h.state.agent = { user_id: 'agent-7', full_name: 'Riya Sharma', account_role: 'agent' }
@@ -657,23 +658,44 @@ describe('dispatchInboundToAiReply — provider failure is never silent', () => 
     await dispatchInboundToAiReply(ARGS)
 
     expect(h.generateReply).toHaveBeenCalledTimes(1) // no retry
-    const note = updatesWith('ai_handoff_summary')[0].payload.ai_handoff_summary as string
-    expect(note).toContain('AI service was unavailable')
-    expect(note).toContain('[invalid_key]')
+    expect(h.state.updates).toHaveLength(0) // not paused, not assigned
+    expect(h.engineSendText).not.toHaveBeenCalled() // no "I've assigned…" message
     expect(h.state.rpcCalls).toHaveLength(0) // no AI reply slot consumed
-    expect(h.state.order).toEqual(['claim', 'send', 'assign'])
     err.mockRestore()
   })
 
-  it('works with no agent configured too (shared queue + generic notice)', async () => {
-    const err = vi.spyOn(console, 'error').mockImplementation(() => {})
-    h.generateReply.mockRejectedValue(new Error('network'))
+  it('a momentary failure (timeout / empty / 5xx) is retried once and the customer still gets a reply', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    h.generateReply
+      .mockRejectedValueOnce(Object.assign(new Error('empty'), { code: 'empty_response' }))
+      .mockResolvedValueOnce({ text: 'Hello!', handoff: false })
     await dispatchInboundToAiReply(ARGS)
-    expect(updatesWith('assigned_agent_id')).toHaveLength(0)
+    expect(h.generateReply).toHaveBeenCalledTimes(2)
+    expect(h.state.updates).toHaveLength(0) // never paused
     expect(h.engineSendText).toHaveBeenCalledWith(
-      expect.objectContaining({ text: expect.stringContaining('our team') }),
+      expect.objectContaining({ text: 'Hello!' }),
+    )
+    warn.mockRestore()
+  })
+
+  it('if the retry fails too, the bot still stays active and the next message is answered', async () => {
+    const err = vi.spyOn(console, 'error').mockImplementation(() => {})
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    h.generateReply.mockReset()
+    h.generateReply.mockRejectedValue(Object.assign(new Error('down'), { code: 'timeout' }))
+    await dispatchInboundToAiReply(ARGS)
+    expect(h.generateReply).toHaveBeenCalledTimes(2) // one try + one retry
+    expect(h.engineSendText).not.toHaveBeenCalled()
+    expect(h.state.updates).toHaveLength(0)
+
+    h.generateReply.mockReset()
+    h.generateReply.mockResolvedValue({ text: 'Hello!', handoff: false })
+    await dispatchInboundToAiReply(ARGS)
+    expect(h.engineSendText).toHaveBeenCalledWith(
+      expect.objectContaining({ text: 'Hello!' }),
     )
     err.mockRestore()
+    warn.mockRestore()
   })
 })
 

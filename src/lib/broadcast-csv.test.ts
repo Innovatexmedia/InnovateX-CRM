@@ -77,8 +77,10 @@ describe('parseBroadcastCsv', () => {
   // (Switzerland). Rows without a leading `+` are refused and counted,
   // not silently dropped, so a whole-file export from a spreadsheet that
   // stripped the `+` is visible to the user before anything is sent
-  // (issue #586).
-  it('rejects rows without a leading + and reports them as invalid', () => {
+  // (issue #586). The one exception is an unambiguous Indian mobile
+  // number (10 digits starting 6-9, or 91 + that): Google Sheets / Excel
+  // strip the `+` from those constantly, and they can only be Indian.
+  it('rejects non-Indian rows without a leading + and reports them as invalid', () => {
     const result = parseBroadcastCsv(
       `phone,name
 4155551212,National US
@@ -89,8 +91,11 @@ describe('parseBroadcastCsv', () => {
     expect(result).toEqual({
       ok: true,
       duplicates: 0,
-      invalid: 2,
-      contacts: [{ phone: '+14155551212', name: 'Ada' }],
+      invalid: 1,
+      contacts: [
+        { phone: '+14155551212', name: 'Ada' },
+        { phone: '+919876543210', name: 'National IN' },
+      ],
     });
   });
 
