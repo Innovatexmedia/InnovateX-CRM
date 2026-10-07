@@ -63,7 +63,10 @@ export async function GET(request: NextRequest) {
   const code = searchParams.get('code')
   const tokenHash = searchParams.get('token_hash')
   const type = searchParams.get('type')
-  const next = safeNextPath(searchParams.get('next'))
+  // A recovery link always ends on the set-new-password page. Don't leave
+  // that to the `next` param: if a mail client or link tracker drops it,
+  // the person is silently signed in and dropped on /dashboard instead.
+  const next = type === 'recovery' ? RESET_PATH : safeNextPath(searchParams.get('next'))
 
   // Supabase redirects here with `error` / `error_code` instead of a
   // code when it already rejected the link (typically `otp_expired`: the
