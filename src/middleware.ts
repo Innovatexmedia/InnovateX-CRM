@@ -48,7 +48,15 @@ export async function middleware(request: NextRequest) {
   // they can accept the invitation in one click. Without this,
   // a forwarded invite link to someone who's already signed in
   // would silently drop them on /dashboard.
-  if (user && (
+  //
+  // Exception: `/auth/callback` sends a dead emailed link back here with an
+  // `?error=` explaining why. For someone who is ALREADY signed in (say, a
+  // reset link opened in a browser that still has a session) bouncing them
+  // to /dashboard would swallow that message and make a failed link look
+  // like it "just opened the dashboard". Let those through so the reason
+  // is visible.
+  const carriesLinkError = request.nextUrl.searchParams.has('error')
+  if (user && !carriesLinkError && (
     request.nextUrl.pathname === '/login' ||
     request.nextUrl.pathname === '/signup' ||
     request.nextUrl.pathname === '/forgot-password'

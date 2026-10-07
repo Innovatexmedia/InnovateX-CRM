@@ -110,6 +110,16 @@ describe("middleware — refreshed auth cookies survive redirects", () => {
     expect(res.cookies.get(ROTATED.name)?.value).toBe(ROTATED.value);
   });
 
+  it("lets a signed-in user see a failed-link message instead of bouncing to /dashboard", async () => {
+    mockUser = { id: "user-1" };
+
+    const res = await middleware(
+      new NextRequest("https://app.test/forgot-password?error=This%20link%20expired"),
+    );
+
+    expect(res.headers.get("location")).toBeNull();
+  });
+
   it("passes through (no redirect) for a signed-in user on a protected page", async () => {
     mockUser = { id: "user-1" };
     refreshedCookies = [ROTATED];
