@@ -41,10 +41,10 @@ export default function NewBroadcastPage() {
     excludeTagIds?: string[];
   }>({ type: 'all' });
   const [variables, setVariables] = useState<
-    Record<string, { type: 'static' | 'field' | 'custom_field'; value: string }>
+    Record<string, { type: 'static' | 'field' | 'custom_field'; value: string; fallback?: string }>
   >({});
   const [buttonVariables, setButtonVariables] = useState<
-    Record<number, { type: 'static' | 'field' | 'custom_field'; value: string }>
+    Record<number, { type: 'static' | 'field' | 'custom_field'; value: string; fallback?: string }>
   >({});
   const [headerMediaUrl, setHeaderMediaUrl] = useState('');
   const [name, setName] = useState('');

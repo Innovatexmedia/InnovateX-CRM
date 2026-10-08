@@ -32,6 +32,11 @@ interface MetaErrorResponse {
     error_subcode?: number
     type?: string
     fbtrace_id?: string
+    /** Plain-language reason Meta attaches to many 4xx errors. On a
+     *  template submit, `message` is just "(#100) Invalid parameter";
+     *  `error_user_msg` says which rule the template broke. */
+    error_user_title?: string
+    error_user_msg?: string
     /** WhatsApp-specific envelope — `details` is the human-readable part. */
     error_data?: { messaging_product?: string; details?: string }
   }
@@ -55,6 +60,9 @@ export class MetaApiError extends Error {
   readonly httpStatus: number
   /** `error.error_data.details` — WhatsApp endpoints put the useful text here. */
   readonly details: string | null
+  /** `error.error_user_title` / `error.error_user_msg` — Meta's own explanation. */
+  readonly userTitle: string | null
+  readonly userMessage: string | null
 
   constructor(
     message: string,
@@ -65,6 +73,8 @@ export class MetaApiError extends Error {
       fbtraceId?: string | null
       httpStatus: number
       details?: string | null
+      userTitle?: string | null
+      userMessage?: string | null
     },
   ) {
     super(message)
@@ -75,7 +85,55 @@ export class MetaApiError extends Error {
     this.fbtraceId = fields.fbtraceId ?? null
     this.httpStatus = fields.httpStatus
     this.details = fields.details ?? null
+    this.userTitle = fields.userTitle ?? null
+    this.userMessage = fields.userMessage ?? null
   }
+}
+
+/**
+ * Meta's documented template error codes, in plain words. Used only
+ * when Meta didn't send its own explanation (error_user_msg / details).
+ * Creation errors come as `error_subcode`, send errors as `code`.
+ */
+const META_TEMPLATE_HINTS: Record<number, string> = {
+  2388299: 'A variable is at the very start or end of the text — add some words before/after it',
+  2388293: 'Too many variables for the amount of text — use about 2–3 normal words per variable',
+  2388072: 'The body format is wrong — use {{1}}, {{2}}, … in order, with two braces on each side',
+  2388047: 'The header format is wrong — one variable at most, not at the start or end, no formatting',
+  2388073: "The footer can't contain variables, formatting or links",
+  2388040: 'A field is longer than Meta allows',
+  2388019: 'This WhatsApp account has reached its template limit — delete unused templates first',
+  132000: "The number of variable values doesn't match the template",
+  132001: "The template doesn't exist in this language or isn't approved yet",
+  132005: 'The message is too long after the variables are filled in',
+  132012: 'A variable value has the wrong format for its type',
+  132015: 'The template is paused by Meta for low quality',
+  132016: 'The template was permanently disabled by Meta for low quality',
+}
+
+/**
+ * The most useful one-line description of a Meta failure for a human.
+ *
+ * Meta's `error.message` is often generic ("(#100) Invalid parameter");
+ * the real reason arrives in `error_user_msg`, `error_data.details`, or
+ * only as a numeric code. Lead with the reason and keep Meta's own text
+ * in brackets so it can still be quoted to Meta support.
+ */
+export function describeMetaError(e: unknown, fallback: string): string {
+  if (!(e instanceof Error)) return fallback
+  if (!(e instanceof MetaApiError)) return e.message || fallback
+  const base = e.message || fallback
+  const fresh = (x: string | null | undefined) => {
+    const v = x?.trim()
+    return v && !base.includes(v) ? v : null
+  }
+  const user = [fresh(e.userTitle), fresh(e.userMessage)].filter(Boolean).join(': ')
+  const reason =
+    user ||
+    fresh(e.details) ||
+    (e.subcode !== null ? META_TEMPLATE_HINTS[e.subcode] : undefined) ||
+    (e.code !== null ? META_TEMPLATE_HINTS[e.code] : undefined)
+  return reason ? `${reason} (${base})` : base
 }
 
 /**
@@ -99,6 +157,8 @@ async function readMetaError(response: Response, fallback: string): Promise<Meta
     fbtraceId: envelope?.fbtrace_id ?? null,
     httpStatus: response.status,
     details: envelope?.error_data?.details ?? null,
+    userTitle: envelope?.error_user_title ?? null,
+    userMessage: envelope?.error_user_msg ?? null,
   })
 }
 

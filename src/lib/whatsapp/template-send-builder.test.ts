@@ -275,3 +275,27 @@ describe('buildSendComponents — end-to-end mix', () => {
     expect((components[2] as { index: string }).index).toBe('1');
   });
 });
+
+describe('buildSendComponents — Meta text-parameter rules', () => {
+  it('turns line breaks / tabs into spaces and collapses long space runs', () => {
+    const components = buildSendComponents(
+      row({ body_text: 'Hi {{1}}, see you at {{2}} today.' }),
+      { body: ['Priya\nSharma', 'Hall\tB      Gate 2'] },
+    );
+    expect(components).toEqual([
+      {
+        type: 'body',
+        parameters: [
+          { type: 'text', text: 'Priya Sharma' },
+          { type: 'text', text: 'Hall B   Gate 2' },
+        ],
+      },
+    ]);
+  });
+
+  it('names the empty variable instead of letting Meta fail the send', () => {
+    expect(() =>
+      buildSendComponents(row({ body_text: 'Hi {{1}}, order {{2}} is ready.' }), { body: ['Priya', '  '] }),
+    ).toThrow(/Body variable \{\{2\}\} has no value/);
+  });
+});

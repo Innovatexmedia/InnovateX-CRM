@@ -71,6 +71,60 @@ export function extractVariableIndices(text: string): number[] {
   return [...set].sort((a, b) => a - b);
 }
 
+// ------------------------------------------------------------
+// Meta's variable-placement rules. Each one maps to a rejection Meta
+// returns as a bare "(#100) Invalid parameter" -- catching them here
+// gives the user the actual reason before anything is submitted.
+//   2388072  malformed / non-sequential placeholders
+//   2388299  leading or trailing parameters not allowed
+//   (guidelines) floating parameters: a line with only variables
+// ------------------------------------------------------------
+
+const VAR_RE = /\{\{\d+\}\}/g;
+/** A letter or digit in any script -- emoji and punctuation don't count as text. */
+const HAS_TEXT = /[\p{L}\p{N}]/u;
+
+/** `{{ 1 }}`, `{{name}}`, `{1}}`, `{{1}` … anything brace-y that isn't exactly `{{N}}`. */
+function assertWellFormedPlaceholders(text: string, where: string): void {
+  const leftover = text.replace(VAR_RE, '');
+  const bad = leftover.match(/\{\{[^{}]{0,20}\}*|[^{}\s]{0,20}\}\}/);
+  if (bad) {
+    throw new Error(
+      `${where} has an invalid variable "${bad[0].trim()}". Write variables exactly as {{1}}, {{2}}, … (two curly braces on each side, a number only, no spaces).`,
+    );
+  }
+}
+
+/** Meta 2388299: there must be real text before the first and after the last variable. */
+function assertNoLeadingOrTrailingVariable(text: string, where: string): void {
+  const matches = [...text.matchAll(VAR_RE)];
+  if (matches.length === 0) return;
+  const first = matches[0], last = matches[matches.length - 1];
+  const before = text.slice(0, first.index);
+  const after = text.slice((last.index ?? 0) + last[0].length);
+  if (!HAS_TEXT.test(before)) {
+    throw new Error(
+      `${where} can't start with a variable (Meta rule). Add some words before ${first[0]} — e.g. "Hi ${first[0]}, …".`,
+    );
+  }
+  if (!HAS_TEXT.test(after)) {
+    throw new Error(
+      `${where} can't end with a variable (Meta rule). Add some words after ${last[0]} — e.g. "… ${last[0]}. See you there!".`,
+    );
+  }
+}
+
+/** Meta guideline: no line made only of variables ("floating parameters"). */
+function assertNoFloatingVariableLines(text: string, where: string): void {
+  for (const line of text.split(/\r?\n/)) {
+    if (line.match(VAR_RE) && !HAS_TEXT.test(line.replace(VAR_RE, ''))) {
+      throw new Error(
+        `${where} has a line with only a variable ("${line.trim()}"). Meta rejects these — put some words on the same line.`,
+      );
+    }
+  }
+}
+
 /**
  * Meta requires contiguous, 1-indexed variables. `{{1}} {{3}}` is
  * invalid — it must be `{{1}} {{2}}`.
@@ -94,8 +148,11 @@ export function validateBody(bodyText: string): number[] {
       `Body text exceeds ${TEMPLATE_LIMITS.bodyMaxLength} chars (got ${bodyText.length}).`,
     );
   }
+  assertWellFormedPlaceholders(bodyText, 'Body');
   const indices = extractVariableIndices(bodyText);
   assertContiguous(indices, 'Body');
+  assertNoLeadingOrTrailingVariable(bodyText, 'Body');
+  assertNoFloatingVariableLines(bodyText, 'Body');
   return indices;
 }
 
@@ -134,6 +191,7 @@ export function validateHeader(
         `Header text exceeds ${TEMPLATE_LIMITS.headerTextMaxLength} chars (got ${header_content.length}).`,
       );
     }
+    assertWellFormedPlaceholders(header_content, 'Header');
     const indices = extractVariableIndices(header_content);
     if (indices.length > 1) {
       throw new Error(
@@ -143,6 +201,7 @@ export function validateHeader(
     if (indices.length === 1 && indices[0] !== 1) {
       throw new Error('Text header variable must be {{1}} (Meta rule).');
     }
+    assertNoLeadingOrTrailingVariable(header_content, 'Header');
     return { variableCount: indices.length };
   }
 
@@ -301,16 +360,17 @@ export function validateSampleValues(
       `Header has ${headerVarCount} variable(s) — supply exactly ${headerVarCount} sample value(s) (got ${header.length}).`,
     );
   }
-  for (let i = 0; i < body.length; i++) {
-    if (!body[i] || !body[i].trim()) {
-      throw new Error(`Body sample value #${i + 1} is empty.`);
+  const checkSample = (v: string | undefined, label: string) => {
+    if (!v || !v.trim()) throw new Error(`${label} is empty — give an example, e.g. a first name.`);
+    if (/[\r\n\t]/.test(v) || / {4,}/.test(v)) {
+      throw new Error(`${label} can't contain line breaks, tabs or 4+ spaces in a row (Meta rule).`);
     }
-  }
-  for (let i = 0; i < header.length; i++) {
-    if (!header[i] || !header[i].trim()) {
-      throw new Error(`Header sample value #${i + 1} is empty.`);
+    if (/\{\{|\}\}/.test(v)) {
+      throw new Error(`${label} must be a real example value, not a variable like {{1}}.`);
     }
-  }
+  };
+  body.forEach((v, i) => checkSample(v, `Sample value for {{${i + 1}}}`));
+  header.forEach((v, i) => checkSample(v, `Header sample value #${i + 1}`));
 }
 
 /**

@@ -57,7 +57,7 @@ describe('validateBody', () => {
     expect(() => validateBody('Hi {{1}} {{3}}')).toThrow(/contiguous/);
   });
   it('accepts contiguous variables', () => {
-    expect(validateBody('Hi {{1}} {{2}}')).toEqual([1, 2]);
+    expect(validateBody('Hi {{1}}, your order {{2}} is ready.')).toEqual([1, 2]);
   });
 });
 
@@ -270,8 +270,44 @@ describe('validateTemplatePayload — integration', () => {
     expect(() =>
       validateTemplatePayload({
         ...baseValid,
-        body_text: 'Hi {{1}}',
+        body_text: 'Hi {{1}}, welcome!',
       }),
     ).toThrow(/exactly 1 sample/);
+  });
+});
+
+describe('Meta variable-placement rules (bare "Invalid parameter" on Meta)', () => {
+  it('rejects a body that starts with a variable, even after an emoji', () => {
+    expect(() => validateBody('⏰ {{1}} 1 HOUR LEFT! Join us live.')).toThrow(/can't start with a variable/);
+    expect(() => validateBody('{{1}}, your seat is booked.')).toThrow(/can't start with a variable/);
+  });
+  it('rejects a body that ends with a variable', () => {
+    expect(() => validateBody('Your code is {{1}}')).toThrow(/can't end with a variable/);
+    expect(() => validateBody('Hi {{1}} 👋')).toThrow(/can't end with a variable/);
+  });
+  it('accepts variables surrounded by text', () => {
+    expect(validateBody('Hi {{1}}, ⏰ 1 HOUR LEFT! See you there!')).toEqual([1]);
+    expect(validateBody('Use code {{1}} at checkout. 🎉')).toEqual([1]);
+  });
+  it('rejects malformed placeholders with a clear hint', () => {
+    expect(() => validateBody('Hello {{ 1 }} there')).toThrow(/invalid variable "\{\{ 1 \}\}"/);
+    expect(() => validateBody('Hello {{name}} there')).toThrow(/invalid variable/);
+    expect(() => validateBody('Hello {1}} there')).toThrow(/invalid variable/);
+  });
+  it('leaves single braces alone', () => {
+    expect(validateBody('Price {1} only')).toEqual([]);
+  });
+  it('rejects a line made only of variables', () => {
+    expect(() => validateBody('Hi {{1}}\n{{2}}\nThanks for joining')).toThrow(/line with only a variable/);
+  });
+  it('applies the start/end rule to text headers too', () => {
+    expect(() => validateHeader({ header_type: 'text', header_content: 'Hello {{1}}' })).toThrow(/can't end/);
+    expect(validateHeader({ header_type: 'text', header_content: 'Our {{1}} sale is on' })).toEqual({ variableCount: 1 });
+  });
+  it('rejects sample values Meta would refuse', () => {
+    const p = { ...baseValid, body_text: 'Hi {{1}}, welcome!' };
+    expect(() => validateSampleValues({ ...p, sample_values: { body: ['a\nb'] } }, 1, 0)).toThrow(/line breaks/);
+    expect(() => validateSampleValues({ ...p, sample_values: { body: ['{{1}}'] } }, 1, 0)).toThrow(/real example/);
+    expect(() => validateSampleValues({ ...p, sample_values: { body: ['Priya'] } }, 1, 0)).not.toThrow();
   });
 });

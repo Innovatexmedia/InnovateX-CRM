@@ -20,6 +20,8 @@ type VariableType = 'static' | 'field' | 'custom_field';
 interface VariableMapping {
   type: VariableType;
   value: string;
+  /** Used when the chosen contact/custom field is empty for a recipient. */
+  fallback?: string;
 }
 
 interface Step3Props {
@@ -256,9 +258,11 @@ export function Step3Personalize({
             email: contact.email,
             company: contact.company,
           };
-          replacement = fieldMap[mapping.value] ?? placeholder;
+          replacement =
+            fieldMap[mapping.value]?.trim() || mapping.fallback?.trim() || placeholder;
         } else if (mapping.type === 'custom_field' && mapping.value) {
-          replacement = customValues.get(mapping.value) || placeholder;
+          replacement =
+            customValues.get(mapping.value)?.trim() || mapping.fallback?.trim() || placeholder;
         }
       }
       text = text.replaceAll(placeholder, replacement);
@@ -437,6 +441,22 @@ export function Step3Personalize({
                     )}
                   </div>
                 </div>
+                {mapping.type !== 'static' && mapping.value && (
+                  <div className="mt-3">
+                    <label className="mb-1.5 block text-xs font-medium text-muted-foreground">
+                      {t('personalize.fallbackLabel')}
+                    </label>
+                    <Input
+                      value={mapping.fallback ?? ''}
+                      onChange={(e) => updateVariable(key, { fallback: e.target.value })}
+                      placeholder={t('personalize.fallbackPlaceholder')}
+                      className="border-border bg-muted text-foreground placeholder:text-muted-foreground"
+                    />
+                    <p className="mt-1.5 text-xs text-muted-foreground">
+                      {t('personalize.fallbackHint')}
+                    </p>
+                  </div>
+                )}
               </div>
             );
           })}
@@ -552,6 +572,22 @@ export function Step3Personalize({
                     )}
                   </div>
                 </div>
+                {mapping.type !== 'static' && mapping.value && (
+                  <div className="mt-3">
+                    <label className="mb-1.5 block text-xs font-medium text-muted-foreground">
+                      {t('personalize.fallbackLabel')}
+                    </label>
+                    <Input
+                      value={mapping.fallback ?? ''}
+                      onChange={(e) => updateButtonVariable(index, { fallback: e.target.value })}
+                      placeholder={t('personalize.fallbackPlaceholder')}
+                      className="border-border bg-muted text-foreground placeholder:text-muted-foreground"
+                    />
+                    <p className="mt-1.5 text-xs text-muted-foreground">
+                      {t('personalize.fallbackHint')}
+                    </p>
+                  </div>
+                )}
               </div>
             );
           })}

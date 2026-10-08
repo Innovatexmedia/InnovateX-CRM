@@ -836,6 +836,9 @@
         "optedOutExcluded": "{count} contato(s) excluído(s) (optaram por sair)"
       },
       "personalize": {
+        "fallbackLabel": "Valor alternativo",
+        "fallbackPlaceholder": "ex.: cliente",
+        "fallbackHint": "Enviado quando um contato não tem valor neste campo, para que a mensagem ainda seja enviada. Se ficar vazio, esses contatos não receberão a mensagem.",
         "title": "Personalizar variáveis",
         "subtitle": "Associe as variáveis do modelo a campos do contato ou informe valores fixos.",
         "headerImage": "Imagem do cabeçalho",

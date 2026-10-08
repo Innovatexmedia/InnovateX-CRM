@@ -35,9 +35,22 @@ export interface AudienceConfig {
  * in `value`.
  */
 export type VariableMapping =
-  | { type: 'static'; value: string }
-  | { type: 'field'; value: string }
-  | { type: 'custom_field'; value: string };
+  | { type: 'static'; value: string; fallback?: string }
+  | { type: 'field'; value: string; fallback?: string }
+  | { type: 'custom_field'; value: string; fallback?: string };
+
+/**
+ * A contact/custom-field mapping can come back empty for some
+ * recipients (no name, no email…). Meta rejects an empty template
+ * variable, so use the mapping's fallback ("there", "customer", …)
+ * when one is set; otherwise leave it empty and that recipient fails
+ * with a clear "variable has no value" error.
+ */
+function withFallback(value: string | undefined, mapping: VariableMapping): string {
+  const v = (value ?? '').trim();
+  if (v) return value as string;
+  return mapping.fallback?.trim() ?? '';
+}
 
 interface BroadcastPayload {
   name: string;
@@ -134,11 +147,11 @@ export function resolveVariables(
         email: contact.email,
         company: contact.company,
       };
-      return fieldMap[v.value] ?? '';
+      return withFallback(fieldMap[v.value], v);
     }
 
     // custom_field
-    return customValues?.get(v.value) ?? '';
+    return withFallback(customValues?.get(v.value), v);
   });
 }
 
@@ -161,9 +174,9 @@ function resolveButtonVariable(
       email: contact.email,
       company: contact.company,
     };
-    return fieldMap[mapping.value] ?? '';
+    return withFallback(fieldMap[mapping.value], mapping);
   }
-  return customValues?.get(mapping.value) ?? '';
+  return withFallback(customValues?.get(mapping.value), mapping);
 }
 
 /**

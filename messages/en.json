@@ -853,6 +853,9 @@
         "optedOutExcluded": "{count} contact(s) excluded (opted out)"
       },
       "personalize": {
+        "fallbackLabel": "Fallback value",
+        "fallbackPlaceholder": "e.g. there",
+        "fallbackHint": "Sent when a contact has no value for this field, so the message still goes out. If left empty, those contacts won't receive the message.",
         "title": "Personalize Variables",
         "subtitle": "Map your template variables to contact fields or provide static values.",
         "headerImage": "Header Image",

@@ -69,6 +69,26 @@ type MetaSendParameter =
   | { type: 'coupon_code'; coupon_code: string }
   | { type: 'payload'; payload: string };
 
+/**
+ * Meta rejects a text parameter that is empty or contains a line
+ * break, a tab, or more than four spaces in a row -- and then fails the
+ * whole send with a generic error. Normalise what can be normalised
+ * (newlines/tabs -> space, long space runs collapsed) and fail with a
+ * clear, per-variable message when the value is genuinely missing.
+ */
+export function cleanTextParam(value: unknown, label: string): string {
+  const text = String(value ?? '')
+    .replace(/\r\n|\r|\n|\t/g, ' ')
+    .replace(/ {4,}/g, '   ')
+    .trim();
+  if (!text) {
+    throw new Error(
+      `${label} has no value for this recipient — Meta rejects empty template variables. Fill in the contact's data or set a value for it.`,
+    );
+  }
+  return text;
+}
+
 function buildHeaderComponent(
   template: MessageTemplate,
   params: SendTimeParams,
@@ -90,7 +110,7 @@ function buildHeaderComponent(
     }
     return {
       type: 'header',
-      parameters: [{ type: 'text', text: value }],
+      parameters: [{ type: 'text', text: cleanTextParam(value, 'Header variable {{1}}') }],
     };
   }
 
@@ -140,7 +160,10 @@ function buildBodyComponent(
   const values = body.slice(0, varCount);
   return {
     type: 'body',
-    parameters: values.map((text) => ({ type: 'text', text: String(text) })),
+    parameters: values.map((text, i) => ({
+      type: 'text',
+      text: cleanTextParam(text, `Body variable {{${i + 1}}}`),
+    })),
   };
 }
 
@@ -182,7 +205,7 @@ function buildButtonComponent(
         type: 'button',
         sub_type: 'url',
         index: String(index),
-        parameters: [{ type: 'text', text: override }],
+        parameters: [{ type: 'text', text: cleanTextParam(override, `URL button #${index + 1} variable`) }],
       };
     }
     case 'COPY_CODE': {

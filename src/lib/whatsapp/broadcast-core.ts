@@ -18,7 +18,7 @@
 
 import type { SupabaseClient } from '@supabase/supabase-js';
 
-import { sendTemplateMessage } from '@/lib/whatsapp/meta-api';
+import { describeMetaError, sendTemplateMessage } from '@/lib/whatsapp/meta-api';
 import { decrypt } from '@/lib/whatsapp/encryption';
 import {
   parseInternationalPhone,
@@ -283,7 +283,9 @@ export async function deliverBroadcast(
         break;
       } catch (error) {
         const message = error instanceof Error ? error.message : 'Unknown error';
-        lastError = message;
+        // Store the readable reason (Meta's own explanation / code hint)
+        // so the campaign report says *why* a recipient failed.
+        lastError = describeMetaError(error, 'Unknown error');
         // Only a "recipient not allowed" error is worth another variant.
         if (!isRecipientNotAllowedError(message)) break;
       }

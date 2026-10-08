@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server'
 import { decrypt } from '@/lib/whatsapp/encryption'
 import {
   deleteMessageTemplate,
+  describeMetaError,
   editMessageTemplate,
 } from '@/lib/whatsapp/meta-api'
 import {
@@ -171,7 +172,7 @@ export async function PATCH(
           components: metaPayload.components,
         })
       } catch (e) {
-        const message = e instanceof Error ? e.message : 'Meta edit failed.'
+        const message = describeMetaError(e, 'Meta edit failed.')
         await supabase
           .from('message_templates')
           .update({

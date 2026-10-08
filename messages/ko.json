@@ -836,6 +836,9 @@
         "optedOutExcluded": "{count}명의 연락처가 제외됨 (수신 거부)"
       },
       "personalize": {
+        "fallbackLabel": "대체 값",
+        "fallbackPlaceholder": "예: 고객님",
+        "fallbackHint": "연락처에 이 필드 값이 없을 때 대신 보내는 값이라 메시지가 그대로 발송됩니다. 비워 두면 해당 연락처에는 메시지가 발송되지 않습니다.",
         "title": "변수 개인화",
         "subtitle": "템플릿 변수를 연락처 필드에 매핑하거나 고정 값을 입력하세요.",
         "headerImage": "헤더 이미지",
