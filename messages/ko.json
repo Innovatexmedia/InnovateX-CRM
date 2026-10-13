@@ -1139,7 +1139,17 @@
         "languageLabel": "언어",
         "select": "템플릿 선택…",
         "unknown": "{name} ({lang}) — 승인 목록에 없음",
-        "unknownLang": "알 수 없음"
+        "unknownLang": "알 수 없음",
+        "variablesTitle": "템플릿 변수",
+        "variablesHint": "템플릿의 각 변수를 채우세요. 연락처 필드를 선택하거나 직접 입력할 수 있습니다. 값이 비어 있는 연락처에는 대체값이 전송되어 메시지가 그대로 발송됩니다.",
+        "insertField": "필드 삽입…",
+        "fallbackPlaceholder": "비어 있을 때 대체값 (예: 고객님)",
+        "field": {
+          "name": "연락처 이름",
+          "phone": "연락처 전화번호",
+          "email": "연락처 이메일",
+          "company": "연락처 회사"
+        }
       },
       "branches": {
         "yes": "예",

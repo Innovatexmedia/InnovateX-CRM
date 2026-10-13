@@ -1139,7 +1139,17 @@
         "languageLabel": "Language",
         "select": "Select a template…",
         "unknown": "{name} ({lang}) — not in approved list",
-        "unknownLang": "unknown"
+        "unknownLang": "unknown",
+        "variablesTitle": "Template variables",
+        "variablesHint": "Fill each variable of the template. Pick a contact field or type your own text. The fallback is sent when the value is empty for a contact, so the message still goes out.",
+        "insertField": "Insert field…",
+        "fallbackPlaceholder": "Fallback if empty, e.g. there",
+        "field": {
+          "name": "Contact name",
+          "phone": "Contact phone",
+          "email": "Contact email",
+          "company": "Contact company"
+        }
       },
       "branches": {
         "yes": "Yes",

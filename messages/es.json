@@ -1139,7 +1139,17 @@
         "languageLabel": "Idioma",
         "select": "Selecciona una plantilla…",
         "unknown": "{name} ({lang}): no está en la lista de aprobadas",
-        "unknownLang": "desconocido"
+        "unknownLang": "desconocido",
+        "variablesTitle": "Variables de la plantilla",
+        "variablesHint": "Completa cada variable de la plantilla. Elige un campo del contacto o escribe tu propio texto. El valor alternativo se envía cuando el valor está vacío para un contacto, así el mensaje sale igualmente.",
+        "insertField": "Insertar campo…",
+        "fallbackPlaceholder": "Valor alternativo si está vacío, p. ej. amigo",
+        "field": {
+          "name": "Nombre del contacto",
+          "phone": "Teléfono del contacto",
+          "email": "Correo del contacto",
+          "company": "Empresa del contacto"
+        }
       },
       "branches": {
         "yes": "Sí",

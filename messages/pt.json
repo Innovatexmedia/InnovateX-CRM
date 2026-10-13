@@ -1139,7 +1139,17 @@
         "languageLabel": "Idioma",
         "select": "Selecione um modelo…",
         "unknown": "{name} ({lang}) — não está na lista de aprovados",
-        "unknownLang": "desconhecido"
+        "unknownLang": "desconhecido",
+        "variablesTitle": "Variáveis do modelo",
+        "variablesHint": "Preencha cada variável do modelo. Escolha um campo do contato ou digite seu próprio texto. O valor alternativo é enviado quando o valor está vazio para um contato, e a mensagem sai mesmo assim.",
+        "insertField": "Inserir campo…",
+        "fallbackPlaceholder": "Valor alternativo se vazio, ex.: amigo",
+        "field": {
+          "name": "Nome do contato",
+          "phone": "Telefone do contato",
+          "email": "E-mail do contato",
+          "company": "Empresa do contato"
+        }
       },
       "branches": {
         "yes": "Sim",

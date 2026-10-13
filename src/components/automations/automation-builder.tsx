@@ -71,6 +71,7 @@ import {
 } from "@/components/interactive/interactive-builder"
 import { interactivePayloadPreviewText } from "@/lib/whatsapp/interactive"
 import { createClient } from "@/lib/supabase/client"
+import { extractVariableIndices } from "@/lib/whatsapp/template-validators"
 import {
   childPath,
   insertAt,
@@ -564,21 +565,62 @@ function DealPipelineFields({
   )
 }
 
+/** Fields a template variable can pull from the contact. Inserted as
+ *  `{{ contact.<field> }}` tokens; the engine renders them per contact
+ *  (see `@/lib/automations/template-vars`). */
+const TEMPLATE_VAR_FIELDS = ["name", "phone", "email", "company"] as const
+
+/** The contact field a value consists of, when it is exactly one
+ *  `{{ contact.<field> }}` token (so the dropdown can show it as chosen). */
+function fieldOf(value: string): (typeof TEMPLATE_VAR_FIELDS)[number] | null {
+  const m = value.trim().match(/^\{\{\s*contact\.(\w+)\s*\}\}$/)
+  const f = m?.[1] as (typeof TEMPLATE_VAR_FIELDS)[number] | undefined
+  return f && TEMPLATE_VAR_FIELDS.includes(f) ? f : null
+}
+
 /** Template dropdown showing approved templates by name + language,
- *  storing both template_name and language. Falls back to manual name +
- *  language inputs when no approved templates are synced yet. */
+ *  storing both template_name and language, plus one input per body
+ *  variable ({{1}}, {{2}}, …) with an optional fallback. Falls back to
+ *  manual name + language inputs when no approved templates are synced
+ *  yet. */
 function SendTemplateFields({
   templateName,
   language,
+  variables,
+  fallbacks,
   onChange,
   t,
 }: {
   templateName: string
   language: string
-  onChange: (patch: { template_name: string; language: string }) => void
+  variables: Record<string, string>
+  fallbacks: Record<string, string>
+  onChange: (patch: Record<string, unknown>) => void
   t: ReturnType<typeof useTranslations>
 }) {
   const { templates } = useResources()
+
+  const selected = templates.find(
+    (x) => x.name === templateName && (x.language ?? "en_US") === language,
+  )
+  const indices = selected ? extractVariableIndices(selected.body_text) : []
+  const missingKey = indices.some((n) => variables[String(n)] === undefined)
+
+  // A template with variables but no stored mapping (e.g. an automation
+  // saved before variables were supported) gets sensible defaults: the
+  // first variable is almost always the contact's name.
+  useEffect(() => {
+    if (!selected || indices.length === 0 || !missingKey) return
+    const nextVars: Record<string, string> = {}
+    const nextFallbacks: Record<string, string> = {}
+    for (const n of indices) {
+      const k = String(n)
+      nextVars[k] = variables[k] ?? (n === 1 ? "{{ contact.name }}" : "")
+      nextFallbacks[k] = fallbacks[k] ?? (n === 1 ? "there" : "")
+    }
+    onChange({ variables: nextVars, fallbacks: nextFallbacks })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selected?.id, missingKey])
 
   if (templates.length === 0) {
     return (
@@ -613,32 +655,109 @@ function SendTemplateFields({
     (t) => toValue(t.name, t.language ?? "en_US") === current,
   )
 
+  const setVar = (key: string, value: string) =>
+    onChange({ variables: { ...variables, [key]: value } })
+  const setFallback = (key: string, value: string) =>
+    onChange({ fallbacks: { ...fallbacks, [key]: value } })
+
   return (
-    <FieldBlock label={t("templates.templateLabel")}>
-      <select
-        value={current}
-        onChange={(e) => {
-          const [name, lang] = e.target.value.split("::")
-          onChange({ template_name: name ?? "", language: lang ?? "" })
-        }}
-        className={SELECT_CLASS}
-      >
-        <option value="">{t("templates.select")}</option>
-        {templates.map((tmpl) => {
-          const lang = tmpl.language ?? "en_US"
-          return (
-            <option key={tmpl.id} value={toValue(tmpl.name, lang)}>
-              {tmpl.name} ({lang})
+    <>
+      <FieldBlock label={t("templates.templateLabel")}>
+        <select
+          value={current}
+          onChange={(e) => {
+            const [name, lang] = e.target.value.split("::")
+            const picked = templates.find(
+              (x) => x.name === name && (x.language ?? "en_US") === lang,
+            )
+            const idx = picked ? extractVariableIndices(picked.body_text) : []
+            const nextVars: Record<string, string> = {}
+            const nextFallbacks: Record<string, string> = {}
+            for (const n of idx) {
+              nextVars[String(n)] = n === 1 ? "{{ contact.name }}" : ""
+              nextFallbacks[String(n)] = n === 1 ? "there" : ""
+            }
+            onChange({
+              template_name: name ?? "",
+              language: lang ?? "",
+              variables: nextVars,
+              fallbacks: nextFallbacks,
+            })
+          }}
+          className={SELECT_CLASS}
+        >
+          <option value="">{t("templates.select")}</option>
+          {templates.map((tmpl) => {
+            const lang = tmpl.language ?? "en_US"
+            return (
+              <option key={tmpl.id} value={toValue(tmpl.name, lang)}>
+                {tmpl.name} ({lang})
+              </option>
+            )
+          })}
+          {current && !hasMatch && (
+            <option value={current}>
+              {t("templates.unknown", { name: templateName, lang: language || t("templates.unknownLang") })}
             </option>
-          )
-        })}
-        {current && !hasMatch && (
-          <option value={current}>
-            {t("templates.unknown", { name: templateName, lang: language || t("templates.unknownLang") })}
-          </option>
-        )}
-      </select>
-    </FieldBlock>
+          )}
+        </select>
+      </FieldBlock>
+
+      {selected && indices.length > 0 && (
+        <div className="mt-3 space-y-2 rounded-md border border-border p-2">
+          <p className="text-xs font-medium text-foreground">
+            {t("templates.variablesTitle")}
+          </p>
+          <p className="text-xs text-muted-foreground">{t("templates.variablesHint")}</p>
+          <p className="whitespace-pre-wrap rounded bg-muted px-2 py-1 text-xs text-muted-foreground">
+            {selected.body_text}
+          </p>
+          {indices.map((n) => {
+            const key = String(n)
+            return (
+              <div key={key} className="space-y-1">
+                <label className="block text-xs font-medium text-muted-foreground">
+                  {"{{" + key + "}}"}
+                </label>
+                <Input
+                  value={variables[key] ?? ""}
+                  onChange={(e) => setVar(key, e.target.value)}
+                  placeholder="{{ contact.name }}"
+                  className="bg-muted text-foreground"
+                />
+                <select
+                  value={fieldOf(variables[key] ?? "") ?? ""}
+                  onChange={(e) => {
+                    const f = e.target.value
+                    if (!f) return
+                    const cur = (variables[key] ?? "").trim()
+                    // Empty or already a single field -> replace it;
+                    // otherwise (custom text) append so nothing is lost.
+                    const token = `{{ contact.${f} }}`
+                    setVar(key, !cur || fieldOf(cur) ? token : `${cur} ${token}`)
+                  }}
+                  className={SELECT_CLASS}
+                  aria-label={t("templates.insertField")}
+                >
+                  <option value="">{t("templates.insertField")}</option>
+                  {TEMPLATE_VAR_FIELDS.map((f) => (
+                    <option key={f} value={f}>
+                      {t(`templates.field.${f}`)}
+                    </option>
+                  ))}
+                </select>
+                <Input
+                  value={fallbacks[key] ?? ""}
+                  onChange={(e) => setFallback(key, e.target.value)}
+                  placeholder={t("templates.fallbackPlaceholder")}
+                  className="bg-muted text-foreground"
+                />
+              </div>
+            )
+          })}
+        </div>
+      )}
+    </>
   )
 }
 
@@ -1990,6 +2109,8 @@ function StepEditor({
         <SendTemplateFields
           templateName={(cfg.template_name as string) ?? ""}
           language={(cfg.language as string) ?? ""}
+          variables={(cfg.variables as Record<string, string> | undefined) ?? {}}
+          fallbacks={(cfg.fallbacks as Record<string, string> | undefined) ?? {}}
           onChange={(patch) => set(patch)}
           t={t}
         />

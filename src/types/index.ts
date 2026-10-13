@@ -651,7 +651,10 @@ export type SendListStepConfig = InteractiveMessagePayload;
 export interface SendTemplateStepConfig {
   template_name: string;
   language?: string;
+  /** Positional body values: "1" -> "{{ contact.name }}" or literal text. */
   variables?: Record<string, string>;
+  /** Used when a variable renders empty for a contact: "1" -> "there". */
+  fallbacks?: Record<string, string>;
 }
 
 export interface TagStepConfig {
