@@ -684,13 +684,14 @@
       },
       "errorLoad": "Failed to load broadcasts",
       "broadcastInProgress": "Broadcast in progress",
-      "retry": "Retry"
+      "retry": "Retry",
+      "eventCampaignsLink": "Event campaigns"
     },
     "newCampaignModal": {
       "title": "Create a new campaign",
       "subtitle": "Choose the type of campaign you want to create.",
       "sendNowTitle": "Broadcast Campaign",
-      "sendNowDesc": "Send WhatsApp messages to your contacts or audiences instantly.",
+      "sendNowDesc": "Send WhatsApp messages to your contacts or audiences instantly, or schedule them for a later date and time.",
       "sendNowBadge": "For marketing",
       "scheduleTitle": "Schedule Campaign",
       "scheduleDesc": "Choose a date and time and let the campaign start automatically.",
@@ -701,7 +702,10 @@
       "recurringTitle": "Recurring Campaign",
       "recurringDesc": "Set up repeated campaigns to run automatically at regular intervals (daily, weekly, monthly, etc.).",
       "recurringBadge": "For engagement",
-      "comingSoon": "Coming soon"
+      "comingSoon": "Coming soon",
+      "eventTitle": "Event Campaign",
+      "eventDesc": "Schedule automated WhatsApp reminders before or after an event, using your selected templates and audience.",
+      "eventBadge": "For event reminders"
     },
     "status": {
       "draft": "Draft",
@@ -2293,5 +2297,198 @@
   },
   "DashboardShell": {
     "loading": "Loading..."
+  },
+  "EventCampaign": {
+    "errorGeneric": "Something went wrong. Please try again.",
+    "newTitle": "New event campaign",
+    "newSubtitle": "Send WhatsApp reminders before and after a webinar or workshop.",
+    "back": "Back",
+    "next": "Next",
+    "steps": {
+      "event": "Event",
+      "audience": "Audience",
+      "reminders": "Reminders",
+      "review": "Review"
+    },
+    "status": {
+      "active": "Active",
+      "paused": "Paused",
+      "cancelled": "Cancelled",
+      "completed": "Completed"
+    },
+    "list": {
+      "title": "Event campaigns",
+      "subtitle": "Webinar and workshop reminders, scheduled around one event date.",
+      "newEvent": "New event campaign",
+      "empty": "No event campaigns yet",
+      "emptyHint": "Create one to send reminders before and after a webinar or workshop.",
+      "remindersSent": "{sent} of {total} sent"
+    },
+    "event": {
+      "title": "Event details",
+      "subtitle": "When is your webinar or workshop happening?",
+      "name": "Event name",
+      "namePlaceholder": "e.g. Free Wealth Webinar",
+      "date": "Date",
+      "time": "Time (IST)",
+      "istNote": "All times are India Standard Time (IST).",
+      "optional": "Optional details (location, join link)",
+      "location": "Location (for in-person events)",
+      "locationPlaceholder": "e.g. Hotel Taj, Connaught Place, Delhi",
+      "joinLink": "Join link",
+      "joinHint": "Only needed if your WhatsApp templates use the link or location as a variable. If the link is already written inside your template, leave this empty.",
+      "errors": {
+        "nameRequired": "Enter the event name.",
+        "dateInvalid": "Pick a valid date and time.",
+        "past": "The event must be in the future.",
+        "link": "The join link must start with http:// or https://"
+      }
+    },
+    "audience": {
+      "title": "Who should get the reminders?",
+      "subtitle": "Pick contacts by tag. The list is checked again at every reminder, so people who register later still get the remaining ones.",
+      "include": "Send to contacts with any of these tags",
+      "exclude": "Skip contacts with any of these tags (optional)",
+      "noTags": "No tags yet. Create tags on the Contacts page first.",
+      "matching": "{count} contacts match right now",
+      "pickOne": "Pick at least one tag."
+    },
+    "reminders": {
+      "title": "Reminders",
+      "subtitle": "Your event and its reminders in time order. Click a reminder to edit it. Use the + to add one.",
+      "eventLabel": "Event",
+      "reminderLabel": "Reminder {n}",
+      "addHere": "Add a reminder here",
+      "amount": "Amount",
+      "unit": "Unit",
+      "when": "When",
+      "units": {
+        "minutes": "minutes",
+        "hours": "hours",
+        "days": "days"
+      },
+      "whenBefore": "before event",
+      "whenStart": "when it starts",
+      "whenAfter": "after event",
+      "template": "Template",
+      "noTemplate": "Choose a template",
+      "choose": "Choose",
+      "change": "Change",
+      "approved": "Approved",
+      "previewTemplate": "Preview template",
+      "pickTemplate": "Choose a template",
+      "noTemplates": "No approved templates found.",
+      "close": "Close",
+      "noVars": "This template has no variables, so nothing to fill in. Its time and link are written in the template text.",
+      "varType": {
+        "static": "Static value",
+        "field": "Contact field",
+        "custom": "Custom field",
+        "event": "Event"
+      },
+      "contactFields": {
+        "name": "Name",
+        "first_name": "First name",
+        "phone": "Phone",
+        "email": "Email",
+        "company": "Company"
+      },
+      "eventFields": {
+        "event_name": "Event name",
+        "event_date": "Event date",
+        "event_time": "Event time",
+        "event_datetime": "Event date and time",
+        "join_link": "Join link",
+        "location": "Location"
+      },
+      "typeValue": "Type the value",
+      "sameForEveryone": "Same text for everyone",
+      "fallback": "Fallback value",
+      "mediaUrl": "Media URL for the template header",
+      "willBeSent": "Will be sent: {when}",
+      "movedQuiet": "moved by quiet hours",
+      "skippedQuiet": "Skipped: the quiet-hours shift would put it after the event starts.",
+      "skippedPast": "Skipped: this time has already passed.",
+      "remove": "Remove this reminder",
+      "removeShort": "Remove",
+      "setting": "Setting",
+      "quietTitle": "Quiet hours",
+      "quietOn": "On · no messages from {from} to {to}",
+      "quietOff": "Off",
+      "on": "On",
+      "off": "Off",
+      "quietDesc": "Reminders that fall inside this window are moved to the end of it. If that would land after the event starts, the reminder is skipped.",
+      "quietFrom": "Don't send from",
+      "quietUntil": "Until",
+      "errors": {
+        "needOne": "Add at least one reminder.",
+        "offset": "A reminder can be at most 30 days before or after the event.",
+        "duplicate": "Two reminders are set for the same time.",
+        "needTemplate": "Choose a template for every reminder.",
+        "fillVars": "Fill in every variable of every template.",
+        "needMedia": "A template with a media header needs a media URL.",
+        "needLink": "A reminder uses the join link or location, but the event has none. Add it in Event details, or set a fallback value.",
+        "noneSendable": "None of these reminders can be sent: their times have passed or fall inside quiet hours."
+      }
+    },
+    "review": {
+      "title": "Review",
+      "subtitle": "Check everything, then create the event campaign.",
+      "event": "Event",
+      "audience": "Audience",
+      "tagsAny": "Any of: {tags}",
+      "tagsExclude": "Except: {tags}",
+      "reminders": "Reminders",
+      "willSkip": "Will not send",
+      "quiet": "Quiet hours",
+      "quietOff": "Off",
+      "create": "Create event campaign",
+      "creating": "Creating...",
+      "created": "Event campaign created."
+    },
+    "detail": {
+      "back": "All event campaigns",
+      "notFound": "Event campaign not found.",
+      "editEvent": "Edit event",
+      "pause": "Pause",
+      "resume": "Resume",
+      "cancel": "Cancel event",
+      "delete": "Delete",
+      "close": "Close",
+      "save": "Save changes",
+      "saved": "Saved",
+      "paused": "Event paused",
+      "resumed": "Event resumed",
+      "cancelled": "Event cancelled",
+      "confirmCancel": "Cancel this event? Reminders that have not gone out yet will not be sent.",
+      "confirmDelete": "Delete this event campaign? Reminders already sent stay in Broadcasts.",
+      "pausedBanner": "Paused. No reminders will go out until you resume.",
+      "audience": "Audience",
+      "quiet": "Quiet hours",
+      "reminders": "Reminders",
+      "addReminder": "Add reminder",
+      "noReminders": "No reminders.",
+      "reminderAdded": "Reminder added",
+      "reminderRemoved": "Reminder removed",
+      "cannotSend": "This reminder could never send: its time has passed or it falls inside quiet hours.",
+      "retimeNote": "Changing the time moves every reminder that has not gone out yet.",
+      "viewReport": "View report",
+      "counts": "Sent {sent} · Delivered {delivered} · Read {read} · Failed {failed}",
+      "reminderStatus": {
+        "scheduled": "Scheduled",
+        "processing": "Sending",
+        "queued": "Sent",
+        "skipped": "Skipped",
+        "failed": "Failed"
+      },
+      "skip": {
+        "quiet_hours_after_event": "Skipped: quiet hours",
+        "already_past": "Skipped: time had passed",
+        "cancelled": "Skipped: event cancelled",
+        "no_recipients": "Skipped: no contacts matched",
+        "too_late": "Skipped: too late to send",
+        "campaign_paused": "Skipped: event was paused"
+      }
+    }
   }
 }

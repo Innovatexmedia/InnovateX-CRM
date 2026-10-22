@@ -7,7 +7,7 @@ import {
   DialogTitle,
   DialogDescription,
 } from '@/components/ui/dialog';
-import { Megaphone, Code, RefreshCw, ChevronRight } from 'lucide-react';
+import { Megaphone, Code, RefreshCw, CalendarDays, ChevronRight } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 
 interface NewCampaignModalProps {
@@ -16,13 +16,14 @@ interface NewCampaignModalProps {
   /** Which entry the user picked. 'now' opens the broadcast wizard
    *  (which now has its own Send Now / Schedule toggle on the final
    *  step, AiSensy-style — there's no separate "Schedule" entry point
-   *  any more); 'api' opens the API-campaign dialog. This component
-   *  carries no send/schedule logic of its own. */
-  onChoose: (mode: 'now' | 'api') => void;
+   *  any more); 'api' opens the API-campaign dialog; 'event' opens the
+   *  Event Campaign wizard (reminders around a webinar/workshop date).
+   *  This component carries no send/schedule logic of its own. */
+  onChoose: (mode: 'now' | 'api' | 'event') => void;
 }
 
 /**
- * Campaign-type selection screen. Three cards, each with its own fixed
+ * Campaign-type selection screen. Four cards (2 x 2), each with its own fixed
  * accent (not the theme accent) so "Broadcast" never reads as a
  * destructive red action whatever accent color the account chose.
  * "Recurring" is shown but not yet available.
@@ -40,7 +41,7 @@ export function NewCampaignModal({ open, onOpenChange, onChoose }: NewCampaignMo
           </DialogDescription>
         </DialogHeader>
 
-        <div className="grid grid-cols-1 gap-4 pt-2 sm:grid-cols-3">
+        <div className="grid grid-cols-1 gap-4 pt-2 sm:grid-cols-2">
           <OptionCard
             icon={<Megaphone className="h-7 w-7" />}
             tone="emerald"
@@ -56,6 +57,14 @@ export function NewCampaignModal({ open, onOpenChange, onChoose }: NewCampaignMo
             description={t('apiDesc')}
             badge={t('apiBadge')}
             onClick={() => onChoose('api')}
+          />
+          <OptionCard
+            icon={<CalendarDays className="h-7 w-7" />}
+            tone="blue"
+            title={t('eventTitle')}
+            description={t('eventDesc')}
+            badge={t('eventBadge')}
+            onClick={() => onChoose('event')}
           />
           <OptionCard
             icon={<RefreshCw className="h-7 w-7" />}

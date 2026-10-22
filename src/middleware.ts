@@ -106,7 +106,7 @@ export async function middleware(request: NextRequest) {
   // caller's own account status, and a platform admin must be able
   // to reach /admin even in the edge case their own account row
   // were ever anything but approved.
-  const approvalGatedPaths = [...protectedPaths, '/api/whatsapp/', '/api/account/', '/api/automations/', '/api/broadcasts/', '/api/contacts/', '/api/conversations/', '/api/flows/', '/api/ai/']
+  const approvalGatedPaths = [...protectedPaths, '/api/whatsapp/', '/api/account/', '/api/automations/', '/api/broadcasts/', '/api/contacts/', '/api/conversations/', '/api/events', '/api/flows/', '/api/ai/']
   const isStatusPage =
     request.nextUrl.pathname === '/account-pending' ||
     request.nextUrl.pathname === '/account-suspended'

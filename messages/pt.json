@@ -684,7 +684,8 @@
       },
       "errorLoad": "Falha ao carregar os disparos",
       "broadcastInProgress": "Disparo em andamento",
-      "retry": "Tentar novamente"
+      "retry": "Tentar novamente",
+      "eventCampaignsLink": "Campanhas de evento"
     },
     "status": {
       "draft": "Rascunho",
@@ -934,7 +935,10 @@
       "recurringDesc": "Set up repeated campaigns to run automatically at regular intervals (daily, weekly, monthly, etc.).",
       "recurringBadge": "For engagement",
       "comingSoon": "Coming soon",
-      "title": "Criar uma nova campanha"
+      "title": "Criar uma nova campanha",
+      "eventTitle": "Campanha de evento",
+      "eventDesc": "Agende lembretes automáticos do WhatsApp antes ou depois de um evento, usando os modelos e o público escolhidos.",
+      "eventBadge": "Para lembretes de eventos"
     },
     "apiCampaign": {
       "dialogTitle": "New API campaign",
@@ -2293,5 +2297,198 @@
   },
   "DashboardShell": {
     "loading": "Carregando..."
+  },
+  "EventCampaign": {
+    "errorGeneric": "Algo deu errado. Tente novamente.",
+    "newTitle": "Nova campanha de evento",
+    "newSubtitle": "Envie lembretes do WhatsApp antes e depois de um webinar ou workshop.",
+    "back": "Voltar",
+    "next": "Próximo",
+    "steps": {
+      "event": "Evento",
+      "audience": "Público",
+      "reminders": "Lembretes",
+      "review": "Revisar"
+    },
+    "status": {
+      "active": "Ativa",
+      "paused": "Pausada",
+      "cancelled": "Cancelada",
+      "completed": "Concluída"
+    },
+    "list": {
+      "title": "Campanhas de evento",
+      "subtitle": "Lembretes de webinars e workshops, agendados em torno de uma data de evento.",
+      "newEvent": "Nova campanha de evento",
+      "empty": "Ainda não há campanhas de evento",
+      "emptyHint": "Crie uma para enviar lembretes antes e depois de um webinar ou workshop.",
+      "remindersSent": "{sent} de {total} enviados"
+    },
+    "event": {
+      "title": "Detalhes do evento",
+      "subtitle": "Quando acontece o seu webinar ou workshop?",
+      "name": "Nome do evento",
+      "namePlaceholder": "ex.: Webinar gratuito de finanças",
+      "date": "Data",
+      "time": "Hora (IST)",
+      "istNote": "Todos os horários seguem o horário padrão da Índia (IST).",
+      "optional": "Detalhes opcionais (local, link de acesso)",
+      "location": "Local (para eventos presenciais)",
+      "locationPlaceholder": "ex.: Hotel Taj, Connaught Place, Delhi",
+      "joinLink": "Link de acesso",
+      "joinHint": "Só é necessário se os seus modelos do WhatsApp usarem o link ou o local como variável. Se o link já estiver escrito no modelo, deixe vazio.",
+      "errors": {
+        "nameRequired": "Informe o nome do evento.",
+        "dateInvalid": "Escolha uma data e hora válidas.",
+        "past": "O evento deve ser no futuro.",
+        "link": "O link deve começar com http:// ou https://"
+      }
+    },
+    "audience": {
+      "title": "Quem deve receber os lembretes?",
+      "subtitle": "Escolha contatos por tag. A lista é verificada de novo a cada lembrete, então quem se registrar depois ainda recebe os restantes.",
+      "include": "Enviar para contatos com qualquer uma destas tags",
+      "exclude": "Ignorar contatos com qualquer uma destas tags (opcional)",
+      "noTags": "Ainda não há tags. Crie tags primeiro na página de Contatos.",
+      "matching": "{count} contatos correspondem agora",
+      "pickOne": "Escolha pelo menos uma tag."
+    },
+    "reminders": {
+      "title": "Lembretes",
+      "subtitle": "Seu evento e os lembretes em ordem cronológica. Clique em um lembrete para editar. Use + para adicionar.",
+      "eventLabel": "Evento",
+      "reminderLabel": "Lembrete {n}",
+      "addHere": "Adicionar um lembrete aqui",
+      "amount": "Quantidade",
+      "unit": "Unidade",
+      "when": "Quando",
+      "units": {
+        "minutes": "minutos",
+        "hours": "horas",
+        "days": "dias"
+      },
+      "whenBefore": "antes do evento",
+      "whenStart": "quando começa",
+      "whenAfter": "depois do evento",
+      "template": "Modelo",
+      "noTemplate": "Escolha um modelo",
+      "choose": "Escolher",
+      "change": "Alterar",
+      "approved": "Aprovado",
+      "previewTemplate": "Pré-visualizar modelo",
+      "pickTemplate": "Escolha um modelo",
+      "noTemplates": "Nenhum modelo aprovado encontrado.",
+      "close": "Fechar",
+      "noVars": "Este modelo não tem variáveis, então não há nada a preencher. O horário e o link estão escritos no texto.",
+      "varType": {
+        "static": "Valor fixo",
+        "field": "Campo do contato",
+        "custom": "Campo personalizado",
+        "event": "Evento"
+      },
+      "contactFields": {
+        "name": "Nome",
+        "first_name": "Primeiro nome",
+        "phone": "Telefone",
+        "email": "E-mail",
+        "company": "Empresa"
+      },
+      "eventFields": {
+        "event_name": "Nome do evento",
+        "event_date": "Data do evento",
+        "event_time": "Hora do evento",
+        "event_datetime": "Data e hora do evento",
+        "join_link": "Link de acesso",
+        "location": "Local"
+      },
+      "typeValue": "Digite o valor",
+      "sameForEveryone": "O mesmo texto para todos",
+      "fallback": "Valor alternativo",
+      "mediaUrl": "URL da mídia do cabeçalho do modelo",
+      "willBeSent": "Será enviado: {when}",
+      "movedQuiet": "movido pelo horário de silêncio",
+      "skippedQuiet": "Ignorado: o ajuste do horário de silêncio o colocaria depois do início do evento.",
+      "skippedPast": "Ignorado: esse horário já passou.",
+      "remove": "Remover este lembrete",
+      "removeShort": "Remover",
+      "setting": "Configuração",
+      "quietTitle": "Horário de silêncio",
+      "quietOn": "Ativo · sem mensagens de {from} a {to}",
+      "quietOff": "Desativado",
+      "on": "Ativado",
+      "off": "Desativado",
+      "quietDesc": "Lembretes que caem nesta janela são movidos para o fim dela. Se isso passar do início do evento, o lembrete é ignorado.",
+      "quietFrom": "Não enviar a partir de",
+      "quietUntil": "Até",
+      "errors": {
+        "needOne": "Adicione pelo menos um lembrete.",
+        "offset": "Um lembrete pode ficar no máximo 30 dias antes ou depois do evento.",
+        "duplicate": "Dois lembretes estão agendados para o mesmo horário.",
+        "needTemplate": "Escolha um modelo para cada lembrete.",
+        "fillVars": "Preencha todas as variáveis de cada modelo.",
+        "needMedia": "Um modelo com cabeçalho de mídia precisa de uma URL.",
+        "needLink": "Um lembrete usa o link ou o local, mas o evento não tem. Adicione em Detalhes do evento ou defina um valor alternativo.",
+        "noneSendable": "Nenhum destes lembretes pode ser enviado: os horários já passaram ou caem no horário de silêncio."
+      }
+    },
+    "review": {
+      "title": "Revisar",
+      "subtitle": "Confira tudo e crie a campanha de evento.",
+      "event": "Evento",
+      "audience": "Público",
+      "tagsAny": "Qualquer uma de: {tags}",
+      "tagsExclude": "Exceto: {tags}",
+      "reminders": "Lembretes",
+      "willSkip": "Não será enviado",
+      "quiet": "Horário de silêncio",
+      "quietOff": "Desativado",
+      "create": "Criar campanha de evento",
+      "creating": "Criando...",
+      "created": "Campanha de evento criada."
+    },
+    "detail": {
+      "back": "Todas as campanhas de evento",
+      "notFound": "Campanha de evento não encontrada.",
+      "editEvent": "Editar evento",
+      "pause": "Pausar",
+      "resume": "Retomar",
+      "cancel": "Cancelar evento",
+      "delete": "Excluir",
+      "close": "Fechar",
+      "save": "Salvar alterações",
+      "saved": "Salvo",
+      "paused": "Evento pausado",
+      "resumed": "Evento retomado",
+      "cancelled": "Evento cancelado",
+      "confirmCancel": "Cancelar este evento? Os lembretes que ainda não foram enviados não serão enviados.",
+      "confirmDelete": "Excluir esta campanha de evento? Os lembretes já enviados permanecem em Transmissões.",
+      "pausedBanner": "Pausado. Nenhum lembrete será enviado até você retomar.",
+      "audience": "Público",
+      "quiet": "Horário de silêncio",
+      "reminders": "Lembretes",
+      "addReminder": "Adicionar lembrete",
+      "noReminders": "Sem lembretes.",
+      "reminderAdded": "Lembrete adicionado",
+      "reminderRemoved": "Lembrete removido",
+      "cannotSend": "Este lembrete nunca seria enviado: o horário já passou ou cai no horário de silêncio.",
+      "retimeNote": "Alterar o horário move todos os lembretes que ainda não foram enviados.",
+      "viewReport": "Ver relatório",
+      "counts": "Enviados {sent} · Entregues {delivered} · Lidos {read} · Falhas {failed}",
+      "reminderStatus": {
+        "scheduled": "Agendado",
+        "processing": "Enviando",
+        "queued": "Enviado",
+        "skipped": "Ignorado",
+        "failed": "Falhou"
+      },
+      "skip": {
+        "quiet_hours_after_event": "Ignorado: horário de silêncio",
+        "already_past": "Ignorado: horário já passou",
+        "cancelled": "Ignorado: evento cancelado",
+        "no_recipients": "Ignorado: nenhum contato correspondeu",
+        "too_late": "Ignorado: tarde demais para enviar",
+        "campaign_paused": "Ignorado: evento pausado"
+      }
+    }
   }
 }

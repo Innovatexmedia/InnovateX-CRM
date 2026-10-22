@@ -74,3 +74,8 @@ docker run -d --env-file .env.local -e PORT=3000 -p 3000:3000 wacrm
   deployment, sending the shared secret in the `x-cron-secret` header
   (`AUTOMATION_CRON_SECRET`, see `.env.local.example`). Both return
   503 until that variable is set.
+  Event Campaigns (reminders scheduled around a webinar/workshop date)
+  need one more ping, `GET /api/events/cron`, every minute, with the
+  same header. It turns due reminders into scheduled broadcasts, which
+  `GET /api/broadcasts/scheduled-cron` then sends — so both must be
+  pinged for event reminders to go out.

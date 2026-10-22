@@ -684,7 +684,8 @@
       },
       "errorLoad": "Error al cargar las difusiones",
       "broadcastInProgress": "Difusión en curso",
-      "retry": "Reintentar"
+      "retry": "Reintentar",
+      "eventCampaignsLink": "Campañas de evento"
     },
     "status": {
       "draft": "Borrador",
@@ -934,7 +935,10 @@
       "recurringDesc": "Set up repeated campaigns to run automatically at regular intervals (daily, weekly, monthly, etc.).",
       "recurringBadge": "For engagement",
       "comingSoon": "Coming soon",
-      "title": "Crear una nueva campaña"
+      "title": "Crear una nueva campaña",
+      "eventTitle": "Campaña de evento",
+      "eventDesc": "Programa recordatorios automáticos de WhatsApp antes o después de un evento, con las plantillas y la audiencia que elijas.",
+      "eventBadge": "Para recordatorios de eventos"
     },
     "apiCampaign": {
       "dialogTitle": "New API campaign",
@@ -2293,5 +2297,198 @@
   },
   "DashboardShell": {
     "loading": "Cargando..."
+  },
+  "EventCampaign": {
+    "errorGeneric": "Algo salió mal. Inténtalo de nuevo.",
+    "newTitle": "Nueva campaña de evento",
+    "newSubtitle": "Envía recordatorios de WhatsApp antes y después de un webinar o taller.",
+    "back": "Atrás",
+    "next": "Siguiente",
+    "steps": {
+      "event": "Evento",
+      "audience": "Audiencia",
+      "reminders": "Recordatorios",
+      "review": "Revisar"
+    },
+    "status": {
+      "active": "Activa",
+      "paused": "Pausada",
+      "cancelled": "Cancelada",
+      "completed": "Completada"
+    },
+    "list": {
+      "title": "Campañas de evento",
+      "subtitle": "Recordatorios de webinars y talleres, programados en torno a una fecha de evento.",
+      "newEvent": "Nueva campaña de evento",
+      "empty": "Aún no hay campañas de evento",
+      "emptyHint": "Crea una para enviar recordatorios antes y después de un webinar o taller.",
+      "remindersSent": "{sent} de {total} enviados"
+    },
+    "event": {
+      "title": "Detalles del evento",
+      "subtitle": "¿Cuándo es tu webinar o taller?",
+      "name": "Nombre del evento",
+      "namePlaceholder": "p. ej. Webinar gratuito de finanzas",
+      "date": "Fecha",
+      "time": "Hora (IST)",
+      "istNote": "Todas las horas son hora estándar de la India (IST).",
+      "optional": "Detalles opcionales (ubicación, enlace)",
+      "location": "Ubicación (para eventos presenciales)",
+      "locationPlaceholder": "p. ej. Hotel Taj, Connaught Place, Delhi",
+      "joinLink": "Enlace para unirse",
+      "joinHint": "Solo es necesario si tus plantillas de WhatsApp usan el enlace o la ubicación como variable. Si el enlace ya está escrito en la plantilla, déjalo vacío.",
+      "errors": {
+        "nameRequired": "Introduce el nombre del evento.",
+        "dateInvalid": "Elige una fecha y hora válidas.",
+        "past": "El evento debe ser en el futuro.",
+        "link": "El enlace debe empezar por http:// o https://"
+      }
+    },
+    "audience": {
+      "title": "¿Quién debe recibir los recordatorios?",
+      "subtitle": "Elige contactos por etiqueta. La lista se revisa en cada recordatorio, así que quien se registre después recibe los restantes.",
+      "include": "Enviar a contactos con cualquiera de estas etiquetas",
+      "exclude": "Omitir contactos con cualquiera de estas etiquetas (opcional)",
+      "noTags": "Aún no hay etiquetas. Crea etiquetas primero en la página de Contactos.",
+      "matching": "{count} contactos coinciden ahora",
+      "pickOne": "Elige al menos una etiqueta."
+    },
+    "reminders": {
+      "title": "Recordatorios",
+      "subtitle": "Tu evento y sus recordatorios en orden cronológico. Haz clic en un recordatorio para editarlo. Usa + para añadir uno.",
+      "eventLabel": "Evento",
+      "reminderLabel": "Recordatorio {n}",
+      "addHere": "Añadir un recordatorio aquí",
+      "amount": "Cantidad",
+      "unit": "Unidad",
+      "when": "Cuándo",
+      "units": {
+        "minutes": "minutos",
+        "hours": "horas",
+        "days": "días"
+      },
+      "whenBefore": "antes del evento",
+      "whenStart": "al empezar",
+      "whenAfter": "después del evento",
+      "template": "Plantilla",
+      "noTemplate": "Elige una plantilla",
+      "choose": "Elegir",
+      "change": "Cambiar",
+      "approved": "Aprobada",
+      "previewTemplate": "Vista previa de la plantilla",
+      "pickTemplate": "Elige una plantilla",
+      "noTemplates": "No se encontraron plantillas aprobadas.",
+      "close": "Cerrar",
+      "noVars": "Esta plantilla no tiene variables, así que no hay nada que completar. La hora y el enlace están escritos en el texto.",
+      "varType": {
+        "static": "Valor fijo",
+        "field": "Campo de contacto",
+        "custom": "Campo personalizado",
+        "event": "Evento"
+      },
+      "contactFields": {
+        "name": "Nombre",
+        "first_name": "Nombre de pila",
+        "phone": "Teléfono",
+        "email": "Correo",
+        "company": "Empresa"
+      },
+      "eventFields": {
+        "event_name": "Nombre del evento",
+        "event_date": "Fecha del evento",
+        "event_time": "Hora del evento",
+        "event_datetime": "Fecha y hora del evento",
+        "join_link": "Enlace para unirse",
+        "location": "Ubicación"
+      },
+      "typeValue": "Escribe el valor",
+      "sameForEveryone": "El mismo texto para todos",
+      "fallback": "Valor alternativo",
+      "mediaUrl": "URL del medio para el encabezado de la plantilla",
+      "willBeSent": "Se enviará: {when}",
+      "movedQuiet": "movido por horas de silencio",
+      "skippedQuiet": "Omitido: el cambio por horas de silencio lo pondría después del inicio del evento.",
+      "skippedPast": "Omitido: esa hora ya pasó.",
+      "remove": "Quitar este recordatorio",
+      "removeShort": "Quitar",
+      "setting": "Ajuste",
+      "quietTitle": "Horas de silencio",
+      "quietOn": "Activo · sin mensajes de {from} a {to}",
+      "quietOff": "Desactivado",
+      "on": "Activado",
+      "off": "Desactivado",
+      "quietDesc": "Los recordatorios que caen en esta franja se mueven al final de la misma. Si eso supera el inicio del evento, se omite el recordatorio.",
+      "quietFrom": "No enviar desde",
+      "quietUntil": "Hasta",
+      "errors": {
+        "needOne": "Añade al menos un recordatorio.",
+        "offset": "Un recordatorio puede estar como máximo a 30 días del evento.",
+        "duplicate": "Dos recordatorios están programados a la misma hora.",
+        "needTemplate": "Elige una plantilla para cada recordatorio.",
+        "fillVars": "Completa todas las variables de cada plantilla.",
+        "needMedia": "Una plantilla con encabezado multimedia necesita una URL.",
+        "needLink": "Un recordatorio usa el enlace o la ubicación, pero el evento no los tiene. Añádelos en Detalles del evento o define un valor alternativo.",
+        "noneSendable": "Ninguno de estos recordatorios se puede enviar: sus horas ya pasaron o caen en horas de silencio."
+      }
+    },
+    "review": {
+      "title": "Revisar",
+      "subtitle": "Revisa todo y crea la campaña de evento.",
+      "event": "Evento",
+      "audience": "Audiencia",
+      "tagsAny": "Cualquiera de: {tags}",
+      "tagsExclude": "Excepto: {tags}",
+      "reminders": "Recordatorios",
+      "willSkip": "No se enviará",
+      "quiet": "Horas de silencio",
+      "quietOff": "Desactivado",
+      "create": "Crear campaña de evento",
+      "creating": "Creando...",
+      "created": "Campaña de evento creada."
+    },
+    "detail": {
+      "back": "Todas las campañas de evento",
+      "notFound": "Campaña de evento no encontrada.",
+      "editEvent": "Editar evento",
+      "pause": "Pausar",
+      "resume": "Reanudar",
+      "cancel": "Cancelar evento",
+      "delete": "Eliminar",
+      "close": "Cerrar",
+      "save": "Guardar cambios",
+      "saved": "Guardado",
+      "paused": "Evento pausado",
+      "resumed": "Evento reanudado",
+      "cancelled": "Evento cancelado",
+      "confirmCancel": "¿Cancelar este evento? Los recordatorios que aún no se enviaron no se enviarán.",
+      "confirmDelete": "¿Eliminar esta campaña de evento? Los recordatorios ya enviados permanecen en Difusiones.",
+      "pausedBanner": "En pausa. No se enviarán recordatorios hasta que reanudes.",
+      "audience": "Audiencia",
+      "quiet": "Horas de silencio",
+      "reminders": "Recordatorios",
+      "addReminder": "Añadir recordatorio",
+      "noReminders": "Sin recordatorios.",
+      "reminderAdded": "Recordatorio añadido",
+      "reminderRemoved": "Recordatorio quitado",
+      "cannotSend": "Este recordatorio nunca se enviaría: su hora ya pasó o cae en horas de silencio.",
+      "retimeNote": "Cambiar la hora mueve todos los recordatorios que aún no se enviaron.",
+      "viewReport": "Ver informe",
+      "counts": "Enviados {sent} · Entregados {delivered} · Leídos {read} · Fallidos {failed}",
+      "reminderStatus": {
+        "scheduled": "Programado",
+        "processing": "Enviando",
+        "queued": "Enviado",
+        "skipped": "Omitido",
+        "failed": "Fallido"
+      },
+      "skip": {
+        "quiet_hours_after_event": "Omitido: horas de silencio",
+        "already_past": "Omitido: la hora ya pasó",
+        "cancelled": "Omitido: evento cancelado",
+        "no_recipients": "Omitido: ningún contacto coincide",
+        "too_late": "Omitido: demasiado tarde para enviar",
+        "campaign_paused": "Omitido: evento en pausa"
+      }
+    }
   }
 }
