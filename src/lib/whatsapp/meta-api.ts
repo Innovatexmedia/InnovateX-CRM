@@ -300,6 +300,62 @@ export async function subscribeWabaToApp(
   }
 }
 
+export interface ExchangeEmbeddedSignupCodeArgs {
+  /** Meta App ID of the Tech Provider app that ran the popup. */
+  appId: string
+  /** That app's App Secret. Server-side only — never send it to a browser. */
+  appSecret: string
+  /** The single-use `code` from `FB.login` (valid for ~30 seconds). */
+  code: string
+}
+
+export interface ExchangeEmbeddedSignupCodeResult {
+  accessToken: string
+  /** Seconds until the token expires, when Meta says so. */
+  expiresIn: number | null
+}
+
+/**
+ * Embedded Signup: swap the popup's one-time `code` for the customer's
+ * business access token.
+ *
+ *   GET /oauth/access_token?client_id&client_secret&code
+ *
+ * No `redirect_uri` is sent — Embedded Signup codes are exchanged
+ * server-to-server without one. The code is single-use and expires
+ * fast, so a failure here usually means "start the popup again".
+ */
+export async function exchangeEmbeddedSignupCode(
+  args: ExchangeEmbeddedSignupCodeArgs
+): Promise<ExchangeEmbeddedSignupCodeResult> {
+  const { appId, appSecret, code } = args
+  const params = new URLSearchParams({
+    client_id: appId,
+    client_secret: appSecret,
+    code,
+  })
+  const response = await fetch(`${META_API_BASE}/oauth/access_token?${params.toString()}`, {
+    method: 'GET',
+  })
+  if (!response.ok) {
+    await throwMetaError(response, `Meta API error: ${response.status}`)
+  }
+  const data = (await response.json().catch(() => null)) as {
+    access_token?: unknown
+    expires_in?: unknown
+  } | null
+  if (!data || typeof data.access_token !== 'string' || data.access_token === '') {
+    throw new MetaApiError('Meta did not return an access token.', { httpStatus: 502 })
+  }
+  return {
+    accessToken: data.access_token,
+    expiresIn:
+      typeof data.expires_in === 'number' && Number.isFinite(data.expires_in)
+        ? data.expires_in
+        : null,
+  }
+}
+
 export interface ListWabaPhoneNumbersArgs {
   wabaId: string
   accessToken: string

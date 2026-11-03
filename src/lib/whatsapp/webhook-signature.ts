@@ -64,7 +64,14 @@ export function verifyMetaWebhookSignature(
   signatureHeader: string | null,
   extraSecrets: string[] = [],
 ): boolean {
-  const secrets = [...parseAppSecrets(process.env.META_APP_SECRET), ...extraSecrets]
+  // META_ES_APP_SECRET: the Tech Provider app behind "Connect with
+  // Facebook" (Embedded Signup). Numbers connected that way deliver
+  // webhooks signed with THIS app's secret, so it must be accepted too.
+  const secrets = [
+    ...parseAppSecrets(process.env.META_APP_SECRET),
+    ...parseAppSecrets(process.env.META_ES_APP_SECRET),
+    ...extraSecrets,
+  ]
   if (secrets.length === 0) {
     console.error(
       '[webhook] No app secret configured — rejecting request. ' +

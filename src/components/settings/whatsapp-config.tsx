@@ -13,6 +13,10 @@ import {
   Zap,
   AlertTriangle,
   RotateCcw,
+  MessageCircle,
+  Code2,
+  ShieldCheck,
+  Users,
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { useAuth } from '@/hooks/use-auth';
@@ -23,6 +27,14 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Switch } from '@/components/ui/switch';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { SettingsPanelHead } from './settings-panel-head';
 import {
   Accordion,
@@ -31,6 +43,11 @@ import {
   AccordionContent,
 } from '@/components/ui/accordion';
 import type { WhatsAppConfig as WhatsAppConfigType } from '@/types';
+import { BrandMark } from './brand-mark';
+import {
+  WhatsAppConnectFacebook,
+  isEmbeddedSignupConfigured,
+} from './whatsapp-connect-facebook';
 
 const MASKED_TOKEN = '••••••••••••••••';
 
@@ -77,6 +94,14 @@ export function WhatsAppConfig() {
   } = useAuth();
 
   const [loading, setLoading] = useState(true);
+  // Which connect option is open: Embedded Signup ("Connect with
+  // Facebook") or the original manual form. null = not chosen yet, which
+  // resolves to a default below (manual when a number is already
+  // connected or Facebook isn't configured).
+  const [connectChoice, setConnectChoice] = useState<'facebook' | 'manual' | null>(null);
+  // Facebook-connected numbers show a compact summary; this opens the raw form.
+  const [showManualEdit, setShowManualEdit] = useState(false);
+  const [resetDialogOpen, setResetDialogOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [testing, setTesting] = useState(false);
   const [resetting, setResetting] = useState(false);
@@ -141,6 +166,16 @@ export function WhatsAppConfig() {
   };
   const [registrationProbe, setRegistrationProbe] =
     useState<RegistrationProbe | null>(null);
+
+  const connectMethod: 'facebook' | 'manual' =
+    connectChoice ?? (config || !isEmbeddedSignupConfigured ? 'manual' : 'facebook');
+  // Facebook connect screen: one clean card, no manual-setup panels.
+  const showFacebookHero = canEditSettings && connectMethod === 'facebook';
+  const showFbSummary =
+    canEditSettings &&
+    connectMethod === 'manual' &&
+    config?.connected_via === 'embedded_signup' &&
+    !showManualEdit;
 
   const webhookUrl =
     typeof window !== 'undefined'
@@ -474,11 +509,12 @@ export function WhatsAppConfig() {
     }
   }
 
-  async function handleReset() {
-    if (!confirm(t('resetConfirm'))) {
-      return;
-    }
+  function handleReset() {
+    setResetDialogOpen(true);
+  }
 
+  async function performReset() {
+    setResetDialogOpen(false);
     try {
       setResetting(true);
       const res = await fetch('/api/whatsapp/config', { method: 'DELETE' });
@@ -566,11 +602,15 @@ export function WhatsAppConfig() {
 
   return (
     <section className="animate-in fade-in-50 duration-200">
-      <SettingsPanelHead
-        title={t("title")}
-        description={t("description")}
-      />
-      <div className="grid gap-6 lg:grid-cols-[1fr_380px]">
+      {/* The Facebook connect card carries its own heading, so the panel
+          header would only repeat it and push the card down. */}
+      {!showFacebookHero && (
+        <SettingsPanelHead
+          title={t("title")}
+          description={t("description")}
+        />
+      )}
+      <div className={showFacebookHero ? 'w-full' : showFbSummary ? 'w-full max-w-3xl' : 'grid gap-6 lg:grid-cols-[1fr_380px]'}>
       {/* Main config form */}
       <div className="space-y-6">
         {/* Corrupted-token reset banner */}
@@ -624,7 +664,8 @@ export function WhatsAppConfig() {
           </Alert>
         )}
 
-        {/* Connection Status */}
+        {/* Connection Status (hidden on the Facebook connect screen) */}
+        {!showFacebookHero && (
         <Alert className="bg-card border-border">
           <div className="flex items-center gap-2">
             {connectionStatus === 'connected' ? (
@@ -660,6 +701,7 @@ export function WhatsAppConfig() {
           )}
           {connectionStatus !== 'connected' && statusMeta && renderMetaDetails(statusMeta)}
         </Alert>
+        )}
 
         {/* Registration Status — the "is it actually live?" check.
             Credentials being valid is necessary but not sufficient;
@@ -764,7 +806,197 @@ export function WhatsAppConfig() {
           </Alert>
         )}
 
-        {/* API Credentials */}
+        {/* Connect with Facebook (Embedded Signup) — hero card */}
+        {showFacebookHero && (
+          <Card
+            className="relative mx-auto w-full max-w-5xl gap-0 overflow-hidden rounded-2xl border-primary/45 py-0"
+            style={{
+              background:
+                'linear-gradient(165deg, color-mix(in oklab, var(--primary) 20%, var(--card)) 0%, var(--card) 55%, color-mix(in oklab, var(--primary) 12%, var(--card)) 100%)',
+            }}
+          >
+            {/* Decorative background: soft glow behind the heading and a
+                faint wave rising to the right. Built from --primary, so it
+                follows the workspace accent. */}
+            <div
+              aria-hidden
+              className="pointer-events-none absolute inset-0"
+              style={{
+                background:
+                  'radial-gradient(60% 62% at 50% 0%, color-mix(in oklab, var(--primary) 34%, transparent), transparent 72%), radial-gradient(45% 55% at 100% 100%, color-mix(in oklab, var(--primary) 18%, transparent), transparent 70%)',
+              }}
+            />
+                        <svg
+              aria-hidden
+              viewBox="0 0 1000 400"
+              preserveAspectRatio="none"
+              className="pointer-events-none absolute left-0 top-0 h-[55%] w-[70%] text-primary"
+            >
+              <path d="M0 0 H760 C 640 60, 520 170, 330 250 C 210 300, 90 330, 0 400 Z" fill="currentColor" opacity="0.07" />
+            </svg>
+            <CardContent className="relative z-10 flex flex-col items-center px-6 pt-8 pb-6 text-center sm:px-16">
+              <BrandMark
+                srcs={['/brand/whatsapp-icon.svg', '/brand/whatsapp-icon.png', '/brand/whatsapp-icon.webp']}
+                alt="WhatsApp"
+                className="mb-5 size-20 rounded-[22px] shadow-lg shadow-emerald-500/30"
+                fallback={
+                  <div className="mb-5 flex size-20 items-center justify-center rounded-[22px] bg-gradient-to-br from-[#33E077] to-[#1DB954] shadow-lg shadow-emerald-500/30">
+                    <BrandMark
+                      srcs={['/brand/whatsapp.svg', '/brand/whatsapp.png', '/brand/whatsapp.webp']}
+                      alt="WhatsApp"
+                      className="size-[62px]"
+                      fallback={<MessageCircle className="size-9 text-white" />}
+                    />
+                  </div>
+                }
+              />
+              <h3 className="text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
+                {t('connectHeroTitle')}
+              </h3>
+              <p className="mt-3 mb-7 max-w-lg text-balance text-base text-foreground/70 sm:text-lg">
+                {t('connectHeroDesc')}
+              </p>
+              <WhatsAppConnectFacebook
+                onConnected={async () => {
+                  if (accountId) await fetchConfig(accountId);
+                  setConnectChoice('manual');
+                }}
+              />
+              <div className="my-5 flex w-full max-w-md items-center gap-4 text-sm text-foreground/60">
+                <span className="h-px flex-1 bg-border" />
+                {t('connectOr')}
+                <span className="h-px flex-1 bg-border" />
+              </div>
+              <button
+                type="button"
+                onClick={() => setConnectChoice('manual')}
+                className="inline-flex items-center gap-2 text-base font-medium text-primary underline underline-offset-4 hover:text-primary/80"
+              >
+                <Code2 className="size-5" />
+                {t('connectManualLink')}
+              </button>
+            </CardContent>
+            <div className="relative z-10 grid border-t border-primary/20 bg-primary/10 py-3.5 sm:grid-cols-3 sm:divide-x sm:divide-primary/20">
+              {[
+                { icon: ShieldCheck, title: t('connectCapApi'), desc: t('connectCapApiDesc') },
+                { icon: Users, title: t('connectCapInbox'), desc: t('connectCapInboxDesc') },
+                { icon: Zap, title: t('connectCapCampaigns'), desc: t('connectCapCampaignsDesc') },
+              ].map(({ icon: Icon, title, desc }) => (
+                <div key={title} className="flex items-center gap-4 px-6 py-2 sm:justify-center">
+                  <Icon strokeWidth={1.5} className="size-9 shrink-0 text-primary" />
+                  <div className="text-left">
+                    <div className="text-sm font-semibold text-foreground">{title}</div>
+                    <div className="text-sm text-foreground/60">{desc}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </Card>
+        )}
+
+        {/* Facebook-connected: compact summary instead of the manual form */}
+        {showFbSummary && config && (
+          <Card className="gap-0 py-0">
+            <CardContent className="space-y-5 p-6">
+              <div className="flex items-start gap-4">
+                <div className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-primary/15 text-primary">
+                  <ShieldCheck className="size-6" />
+                </div>
+                <div className="min-w-0">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <h3 className="text-lg font-semibold text-foreground">{t('connectedFbTitle')}</h3>
+                    <span className="rounded-full bg-emerald-500/15 px-2.5 py-0.5 text-xs font-medium text-emerald-400">
+                      {t('connectedFbActive')}
+                    </span>
+                  </div>
+                  <p className="mt-1 text-sm text-muted-foreground">{t('connectedFbDesc')}</p>
+                </div>
+              </div>
+
+              <dl className="grid gap-3 sm:grid-cols-2">
+                <div className="rounded-lg border border-border bg-muted/40 p-3">
+                  <dt className="text-xs text-muted-foreground">{t('phoneNumberId')}</dt>
+                  <dd className="mt-1 break-all font-mono text-sm text-foreground">{config.phone_number_id}</dd>
+                </div>
+                <div className="rounded-lg border border-border bg-muted/40 p-3">
+                  <dt className="text-xs text-muted-foreground">{t('wabaId')}</dt>
+                  <dd className="mt-1 break-all font-mono text-sm text-foreground">{config.waba_id}</dd>
+                </div>
+                <div className="rounded-lg border border-border bg-muted/40 p-3 sm:col-span-2">
+                  <dt className="text-xs text-muted-foreground">{t('accessToken')}</dt>
+                  <dd className="mt-1 text-sm text-foreground">{t('connectedFbTokenManaged')}</dd>
+                </div>
+              </dl>
+
+              <div className="flex flex-wrap items-center gap-3">
+                <Button
+                  variant="outline"
+                  onClick={handleTestConnection}
+                  disabled={testing}
+                  className="border-border text-muted-foreground hover:text-foreground hover:bg-muted"
+                >
+                  {testing ? (
+                    <>
+                      <Loader2 className="size-4 animate-spin" />
+                      {t('testing')}
+                    </>
+                  ) : (
+                    <>
+                      <Zap className="size-4" />
+                      {t('testConnection')}
+                    </>
+                  )}
+                </Button>
+                <Button
+                  onClick={() => setConnectChoice('facebook')}
+                  className="bg-primary hover:bg-primary/90 text-primary-foreground"
+                >
+                  {t('reconnectFacebook')}
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={handleReset}
+                  disabled={resetting}
+                  className="border-red-900 text-red-400 hover:text-red-300 hover:bg-red-950/40"
+                >
+                  {resetting ? (
+                    <>
+                      <Loader2 className="size-4 animate-spin" />
+                      {t('resetting')}
+                    </>
+                  ) : (
+                    <>
+                      <RotateCcw className="size-4" />
+                      {t('resetConfig')}
+                    </>
+                  )}
+                </Button>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setShowManualEdit(true)}
+                className="text-sm text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
+              >
+                {t('editManually')}
+              </button>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Back to Facebook option from the manual form */}
+        {canEditSettings && connectMethod === 'manual' && isEmbeddedSignupConfigured && !showFbSummary && (
+          <button
+            type="button"
+            onClick={() => setConnectChoice('facebook')}
+            className="text-sm text-primary underline-offset-4 hover:underline"
+          >
+            {t('connectFacebookInstead')}
+          </button>
+        )}
+
+        {/* API Credentials (manual connect) */}
+        {(connectMethod === 'manual' || !canEditSettings) && !showFbSummary && (
         <Card>
           <CardHeader>
             <CardTitle className="text-foreground">{t('apiCredentialsTitle')}</CardTitle>
@@ -943,8 +1175,11 @@ export function WhatsAppConfig() {
             </Accordion>
           </CardContent>
         </Card>
+        )}
 
-        {/* Webhook URL */}
+        {/* Webhook URL — only for manual setup. Facebook-connected numbers
+            get their webhook from the Meta app, nothing for the client to paste. */}
+        {connectMethod === 'manual' && config?.connected_via !== 'embedded_signup' && (
         <Card>
           <CardHeader>
             <CardTitle className="text-foreground">{t('webhookTitle')}</CardTitle>
@@ -973,6 +1208,7 @@ export function WhatsAppConfig() {
             </div>
           </CardContent>
         </Card>
+        )}
 
         {/* Attachment retention. Only meaningful once a number is
             connected, since it governs what the webhook does with
@@ -1011,7 +1247,8 @@ export function WhatsAppConfig() {
           </Card>
         )}
 
-        {/* Action Buttons */}
+        {/* Action Buttons (manual setup only) */}
+        {!showFacebookHero && !showFbSummary && (
         <div className="flex flex-wrap gap-3">
           <Button
             onClick={handleSave}
@@ -1066,9 +1303,11 @@ export function WhatsAppConfig() {
             </Button>
           )}
         </div>
+        )}
       </div>
 
-      {/* Setup Instructions Sidebar */}
+      {/* Setup Instructions Sidebar (manual setup only) */}
+      {!showFacebookHero && !showFbSummary && (
       <div>
         <Card>
           <CardHeader>
@@ -1162,7 +1401,31 @@ export function WhatsAppConfig() {
           </CardContent>
         </Card>
       </div>
+      )}
     </div>
+      <Dialog open={resetDialogOpen} onOpenChange={setResetDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>{t('resetDialogTitle')}</DialogTitle>
+            <DialogDescription>
+              {config?.connected_via === 'embedded_signup'
+                ? t('resetDialogDescFb')
+                : t('resetDialogDesc')}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setResetDialogOpen(false)}>
+              {t('resetDialogCancel')}
+            </Button>
+            <Button
+              onClick={performReset}
+              className="bg-red-600 text-white hover:bg-red-700"
+            >
+              {t('resetDialogConfirm')}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </section>
   );
 }

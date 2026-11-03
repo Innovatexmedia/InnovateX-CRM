@@ -42,7 +42,9 @@ const SECURITY_HEADERS = [
       // Next.js needs 'unsafe-inline' for its inline hydration script
       // and 'unsafe-eval' in dev + some production optimisations.
       // Nonce-based CSP is a later project.
-      "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
+      // connect.facebook.net serves the Facebook JS SDK that runs the
+      // WhatsApp Embedded Signup ("Connect with Facebook") popup.
+      "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://connect.facebook.net",
       // Tailwind + inline style attributes on lots of components.
       "style-src 'self' 'unsafe-inline'",
       // Supabase public-bucket avatars, contact avatars (arbitrary
@@ -55,7 +57,10 @@ const SECURITY_HEADERS = [
       "font-src 'self' data:",
       // Supabase REST + realtime (WSS). All Meta API calls happen
       // server-side, so graph.facebook.com does not belong here.
-      "connect-src 'self' https://*.supabase.co wss://*.supabase.co",
+      // The Facebook SDK (Embedded Signup) talks to *.facebook.com from
+      // the browser; the Meta API calls we make ourselves stay server-side.
+      "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://*.facebook.com https://connect.facebook.net",
+      "frame-src 'self' https://*.facebook.com",
       "frame-ancestors 'none'",
       "base-uri 'self'",
       "form-action 'self'",
@@ -98,6 +103,7 @@ const nextConfig: NextConfig = {
     "*.ngrok-free.app",
     "*.ngrok.app",
     "*.ngrok.io",
+    "*.ngrok-free.dev",
     "*.trycloudflare.com",
     "*.loca.lt",
     ...(process.env.ALLOWED_DEV_ORIGINS

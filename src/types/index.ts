@@ -334,6 +334,9 @@ export interface WhatsAppConfig {
    */
   app_id?: string | null;
   app_secret?: string | null;
+  /** 'manual' (Settings form) or 'embedded_signup' (Connect with Facebook);
+   *  NULL on rows that predate migration 052. */
+  connected_via?: 'manual' | 'embedded_signup' | null;
 }
 
 // Raw Meta status enum. We persist this verbatim from Meta (sync + webhook)

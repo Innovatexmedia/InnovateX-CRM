@@ -68,9 +68,19 @@ export function Header({ onOpenSidebar }: HeaderProps) {
         >
           <Menu className="h-5 w-5" />
         </button>
-        <h1 className="truncate text-base font-semibold text-foreground sm:text-lg">
-          {t(titleKey as string)}
-        </h1>
+        {titleKey === "settings" ? (
+          // Settings only: gear icon next to the title.
+          <div className="flex min-w-0 items-center gap-3">
+            <SettingsIcon className="hidden size-6 shrink-0 text-foreground sm:block" />
+            <h1 className="truncate text-base font-semibold text-foreground sm:text-lg">
+              {t(titleKey as string)}
+            </h1>
+          </div>
+        ) : (
+          <h1 className="truncate text-base font-semibold text-foreground sm:text-lg">
+            {t(titleKey as string)}
+          </h1>
+        )}
       </div>
 
       <div className="flex items-center gap-1 sm:gap-2">

@@ -9,6 +9,15 @@ Versions follow [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Pre-1.0, `MINOR` bumps cover new modules; `PATCH` bumps cover bug fixes
 and polish.
 
+## [Unreleased]
+
+### Added
+
+- **Connect with Facebook** (WhatsApp Embedded Signup) in Settings → WhatsApp, next to the
+  existing manual form. See `docs/embedded-signup.md`.
+
+**Migration required:** `052_whatsapp_embedded_signup.sql`.
+
 ## [0.8.1] — 2026-07-10
 
 Fixes inbound chats fragmenting into multiple threads for the same
