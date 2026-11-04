@@ -42,6 +42,31 @@ export function normalizeConversations(
   return rows.map(normalizeConversation);
 }
 
+/**
+ * Newest activity first. Conversations that have no `last_message_at` yet
+ * (nothing sent/received) sink to the bottom instead of floating to the top,
+ * and equal timestamps keep their existing relative order (stable sort).
+ *
+ * Realtime events patch `last_message_at` in place without moving the row,
+ * so the list re-sorts through this on every render — a new message jumps
+ * its conversation to the top without a refetch.
+ */
+export function sortConversationsByRecency(
+  conversations: Conversation[],
+): Conversation[] {
+  const time = (c: Conversation): number => {
+    if (!c.last_message_at) return Number.NEGATIVE_INFINITY;
+    const t = Date.parse(c.last_message_at);
+    return Number.isNaN(t) ? Number.NEGATIVE_INFINITY : t;
+  };
+  return [...conversations].sort((a, b) => {
+    const ta = time(a);
+    const tb = time(b);
+    if (ta === tb) return 0;
+    return ta > tb ? -1 : 1;
+  });
+}
+
 export interface ContactFilters {
   /** Tag ids; a conversation matches if its contact has ANY of them (OR). */
   tagIds: string[];

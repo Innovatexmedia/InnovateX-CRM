@@ -304,8 +304,11 @@ export function Sidebar({ open = false, onClose }: SidebarProps) {
                 pathname === item.href ||
                 (item.href !== "/dashboard" && pathname.startsWith(item.href));
 
-              const showUnreadDot =
-                item.href === "/inbox" && totalUnread > 0 && !isActive;
+              // Number of chats with unread messages. Stays visible while the
+              // Inbox is open (like the notifications badge): it reflects
+              // pending work, not "currently viewing this section".
+              const showInboxBadge = item.href === "/inbox" && totalUnread > 0;
+              const inboxBadgeText = totalUnread > 99 ? "99+" : String(totalUnread);
 
               // Unlike the inbox dot, the notifications count stays visible
               // even while the page is active — it reflects unread state
@@ -328,7 +331,19 @@ export function Sidebar({ open = false, onClose }: SidebarProps) {
                         : "text-muted-foreground hover:bg-muted hover:text-foreground",
                     )}
                   >
-                    <item.icon className="h-4 w-4 shrink-0" />
+                    <span className="relative flex shrink-0">
+                      <item.icon className="h-4 w-4 shrink-0" />
+                      {/* Collapsed rail has no room for the inline badge, so
+                          show a compact one pinned to the icon instead. */}
+                      {showInboxBadge && collapsed && (
+                        <span
+                          aria-hidden="true"
+                          className="absolute -right-2 -top-2 hidden h-4 min-w-4 items-center justify-center rounded-full bg-primary px-1 text-[9px] font-semibold leading-none text-primary-foreground lg:flex"
+                        >
+                          {inboxBadgeText}
+                        </span>
+                      )}
+                    </span>
                     <span className={cn("flex-1", collapsed && "lg:hidden")}>
                       {t(item.labelKey as string)}
                     </span>
@@ -343,13 +358,15 @@ export function Sidebar({ open = false, onClose }: SidebarProps) {
                         {t("beta")}
                       </span>
                     )}
-                    {showUnreadDot && (
+                    {showInboxBadge && (
                       <span
                         aria-label={t("unreadConversations", { count: totalUnread })}
-                        className={cn("relative flex h-2 w-2", collapsed && "lg:hidden")}
+                        className={cn(
+                          "flex h-5 min-w-5 items-center justify-center rounded-full bg-primary px-1 text-[10px] font-semibold text-primary-foreground",
+                          collapsed && "lg:hidden",
+                        )}
                       >
-                        <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-primary opacity-75" />
-                        <span className="relative inline-flex h-2 w-2 rounded-full bg-primary" />
+                        {inboxBadgeText}
                       </span>
                     )}
                     {showNotificationBadge && (

@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import {
   matchesContactFilters,
   normalizeConversation,
+  sortConversationsByRecency,
 } from "./conversations";
 import type { Conversation } from "@/types";
 
@@ -141,5 +142,51 @@ describe("normalizeConversation", () => {
     };
     // A contactless row passes through untouched (consumers use `?.`).
     expect(normalizeConversation(raw).contact).toBeNull();
+  });
+});
+
+describe("sortConversationsByRecency", () => {
+  const conv = (id: string, last: string | undefined): Conversation => ({
+    ...makeConversation(null),
+    id,
+    last_message_at: last,
+  });
+
+  it("puts the newest message first", () => {
+    const sorted = sortConversationsByRecency([
+      conv("old", "2026-10-01T10:00:00Z"),
+      conv("new", "2026-11-04T10:00:00Z"),
+      conv("mid", "2026-10-20T10:00:00Z"),
+    ]);
+    expect(sorted.map((c) => c.id)).toEqual(["new", "mid", "old"]);
+  });
+
+  it("moves a conversation to the top when a new message arrives", () => {
+    const before = [
+      conv("a", "2026-11-04T10:00:00Z"),
+      conv("b", "2026-11-03T10:00:00Z"),
+    ];
+    const after = before.map((c) =>
+      c.id === "b" ? { ...c, last_message_at: "2026-11-04T12:00:00Z" } : c,
+    );
+    expect(sortConversationsByRecency(after).map((c) => c.id)).toEqual([
+      "b",
+      "a",
+    ]);
+  });
+
+  it("sinks conversations with no messages to the bottom", () => {
+    const sorted = sortConversationsByRecency([
+      conv("empty1", undefined),
+      conv("real", "2026-11-04T10:00:00Z"),
+      conv("empty2", undefined),
+    ]);
+    expect(sorted.map((c) => c.id)).toEqual(["real", "empty1", "empty2"]);
+  });
+
+  it("does not mutate the input array", () => {
+    const input = [conv("a", "2026-10-01T00:00:00Z"), conv("b", "2026-11-01T00:00:00Z")];
+    sortConversationsByRecency(input);
+    expect(input.map((c) => c.id)).toEqual(["a", "b"]);
   });
 });

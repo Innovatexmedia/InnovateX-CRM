@@ -6,6 +6,7 @@ import {
   CONVERSATION_SELECT,
   matchesContactFilters,
   normalizeConversations,
+  sortConversationsByRecency,
 } from "@/lib/inbox/conversations";
 import { cn } from "@/lib/utils";
 import type { Conversation, ConversationStatus, Tag } from "@/types";
@@ -98,7 +99,9 @@ export function ConversationList({
       const { data, error } = await supabase
         .from("conversations")
         .select(CONVERSATION_SELECT)
-        .order("last_message_at", { ascending: false });
+        // Postgres sorts NULLs first on DESC, which put "No messages yet"
+        // conversations above real chats — keep them last.
+        .order("last_message_at", { ascending: false, nullsFirst: false });
 
       if (cancelled) return;
 
@@ -159,7 +162,9 @@ export function ConversationList({
   }, [tags]);
 
   const filtered = useMemo(() => {
-    let result = conversations;
+    // Realtime updates change last_message_at in place, so always render
+    // in recency order: the conversation with the newest message is on top.
+    let result = sortConversationsByRecency(conversations);
 
     if (filter === "unread") {
       result = result.filter((c) => c.unread_count > 0);
