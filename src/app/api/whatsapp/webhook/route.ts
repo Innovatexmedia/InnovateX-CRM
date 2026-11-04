@@ -150,6 +150,17 @@ export async function GET(request: Request) {
       )
     }
 
+    // Connect-with-Facebook (Embedded Signup) accounts have no per-account
+    // verify token in the UI. Their webhook lives on InnovateX's own Meta
+    // app, so a single platform-level token (env) is accepted here.
+    const platformToken = (process.env.META_ES_WEBHOOK_VERIFY_TOKEN ?? '').trim()
+    if (platformToken && verifyToken === platformToken) {
+      return new Response(challenge, {
+        status: 200,
+        headers: { 'Content-Type': 'text/plain' },
+      })
+    }
+
     // Fetch all whatsapp configs to check verify tokens
     const { data: configs, error: configError } = await supabaseAdmin()
       .from('whatsapp_config')
