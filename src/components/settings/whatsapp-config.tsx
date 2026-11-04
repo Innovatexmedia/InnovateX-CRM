@@ -20,6 +20,7 @@ import {
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { useAuth } from '@/hooks/use-auth';
+import { cn } from '@/lib/utils';
 import { useTranslations } from 'next-intl';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -99,8 +100,6 @@ export function WhatsAppConfig() {
   // resolves to a default below (manual when a number is already
   // connected or Facebook isn't configured).
   const [connectChoice, setConnectChoice] = useState<'facebook' | 'manual' | null>(null);
-  // Facebook-connected numbers show a compact summary; this opens the raw form.
-  const [showManualEdit, setShowManualEdit] = useState(false);
   const [resetDialogOpen, setResetDialogOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [testing, setTesting] = useState(false);
@@ -115,6 +114,13 @@ export function WhatsAppConfig() {
   const [statusMeta, setStatusMeta] = useState<MetaErrorMeta | null>(null);
   const [saveFailure, setSaveFailure] = useState<MetaFailure | null>(null);
   const [wabaSubscription, setWabaSubscription] = useState<WabaSubscription | null>(null);
+  // Number details from the health check (GET /api/whatsapp/config), shown
+  // on the Facebook-connected summary card.
+  const [phoneInfo, setPhoneInfo] = useState<{
+    display_phone_number?: string;
+    verified_name?: string;
+    quality_rating?: string;
+  } | null>(null);
   // Guards against re-hydrating the form when the load effect below
   // re-runs for reasons unrelated to actually switching accounts —
   // e.g. Supabase's onAuthStateChange fires a token refresh (new
@@ -171,11 +177,37 @@ export function WhatsAppConfig() {
     connectChoice ?? (config || !isEmbeddedSignupConfigured ? 'manual' : 'facebook');
   // Facebook connect screen: one clean card, no manual-setup panels.
   const showFacebookHero = canEditSettings && connectMethod === 'facebook';
+  // Facebook-connected numbers only get a compact status card — no raw
+  // credential form. To switch to manual setup the admin resets first.
   const showFbSummary =
     canEditSettings &&
     connectMethod === 'manual' &&
-    config?.connected_via === 'embedded_signup' &&
-    !showManualEdit;
+    config?.connected_via === 'embedded_signup';
+  // Meta's quality rating (GREEN/YELLOW/RED) → label key + status dot colour.
+  const fbQuality = (() => {
+    switch (phoneInfo?.quality_rating?.toUpperCase()) {
+      case 'GREEN':
+        return { labelKey: 'connectedFbQualityHigh', dot: 'bg-emerald-500' } as const;
+      case 'YELLOW':
+        return { labelKey: 'connectedFbQualityMedium', dot: 'bg-amber-500' } as const;
+      case 'RED':
+        return { labelKey: 'connectedFbQualityLow', dot: 'bg-red-500' } as const;
+      default:
+        return null;
+    }
+  })();
+  const connectedSinceRaw = config?.connected_at ?? config?.registered_at;
+  const connectedSince = connectedSinceRaw
+    ? new Date(connectedSinceRaw).toLocaleDateString(undefined, {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+      })
+    : null;
+  // "Reconnect with Facebook" is a repair action: only offered when the
+  // connection is actually unhealthy (health check failed or the number
+  // isn't registered with Meta), not as an everyday button.
+  const needsFbReconnect = connectionStatus === 'disconnected' || !isRegistered;
 
   const webhookUrl =
     typeof window !== 'undefined'
@@ -247,12 +279,14 @@ export function WhatsAppConfig() {
             setStatusMessage('');
             setStatusMeta(null);
             setWabaSubscription(payload.waba_subscription ?? null);
+            setPhoneInfo(payload.phone_info ?? null);
           } else {
             setConnectionStatus('disconnected');
             setResetReason(payload.needs_reset ? 'token_corrupted' : payload.reason === 'meta_api_error' ? 'meta_api_error' : null);
             setStatusMessage(payload.message || '');
             setStatusMeta(payload.meta ?? null);
             setWabaSubscription(null);
+            setPhoneInfo(null);
           }
         } catch (err) {
           console.error('Health check failed:', err);
@@ -914,6 +948,37 @@ export function WhatsAppConfig() {
               </div>
 
               <dl className="grid gap-3 sm:grid-cols-2">
+                {phoneInfo?.display_phone_number && (
+                  <div className="rounded-lg border border-border bg-muted/40 p-3">
+                    <dt className="text-xs text-muted-foreground">{t('connectedFbNumber')}</dt>
+                    <dd className="mt-1 text-base font-semibold text-foreground">
+                      {phoneInfo.display_phone_number}
+                    </dd>
+                  </div>
+                )}
+                {phoneInfo?.verified_name && (
+                  <div className="rounded-lg border border-border bg-muted/40 p-3">
+                    <dt className="text-xs text-muted-foreground">{t('connectedFbName')}</dt>
+                    <dd className="mt-1 text-base font-semibold text-foreground">
+                      {phoneInfo.verified_name}
+                    </dd>
+                  </div>
+                )}
+                {fbQuality && (
+                  <div className="rounded-lg border border-border bg-muted/40 p-3">
+                    <dt className="text-xs text-muted-foreground">{t('connectedFbQuality')}</dt>
+                    <dd className="mt-1 flex items-center gap-2 text-sm text-foreground">
+                      <span className={cn('size-2.5 rounded-full', fbQuality.dot)} />
+                      {t(fbQuality.labelKey)}
+                    </dd>
+                  </div>
+                )}
+                {connectedSince && (
+                  <div className="rounded-lg border border-border bg-muted/40 p-3">
+                    <dt className="text-xs text-muted-foreground">{t('connectedFbSince')}</dt>
+                    <dd className="mt-1 text-sm text-foreground">{connectedSince}</dd>
+                  </div>
+                )}
                 <div className="rounded-lg border border-border bg-muted/40 p-3">
                   <dt className="text-xs text-muted-foreground">{t('phoneNumberId')}</dt>
                   <dd className="mt-1 break-all font-mono text-sm text-foreground">{config.phone_number_id}</dd>
@@ -947,12 +1012,14 @@ export function WhatsAppConfig() {
                     </>
                   )}
                 </Button>
-                <Button
-                  onClick={() => setConnectChoice('facebook')}
-                  className="bg-primary hover:bg-primary/90 text-primary-foreground"
-                >
-                  {t('reconnectFacebook')}
-                </Button>
+                {needsFbReconnect && (
+                  <Button
+                    onClick={() => setConnectChoice('facebook')}
+                    className="bg-primary hover:bg-primary/90 text-primary-foreground"
+                  >
+                    {t('reconnectFacebook')}
+                  </Button>
+                )}
                 <Button
                   variant="outline"
                   onClick={handleReset}
@@ -972,20 +1039,13 @@ export function WhatsAppConfig() {
                   )}
                 </Button>
               </div>
-
-              <button
-                type="button"
-                onClick={() => setShowManualEdit(true)}
-                className="text-sm text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
-              >
-                {t('editManually')}
-              </button>
             </CardContent>
           </Card>
         )}
 
-        {/* Back to Facebook option from the manual form */}
-        {canEditSettings && connectMethod === 'manual' && isEmbeddedSignupConfigured && !showFbSummary && (
+        {/* Back to Facebook option from the manual form — only while nothing
+            is connected yet; once connected, switching goes through Reset. */}
+        {canEditSettings && connectMethod === 'manual' && isEmbeddedSignupConfigured && !config && (
           <button
             type="button"
             onClick={() => setConnectChoice('facebook')}
@@ -993,6 +1053,58 @@ export function WhatsAppConfig() {
           >
             {t('connectFacebookInstead')}
           </button>
+        )}
+
+        {/* Number details (manual connect) — same live info the Facebook
+            card shows, read from the health check that already runs. */}
+        {(connectMethod === 'manual' || !canEditSettings) &&
+          !showFbSummary &&
+          connectionStatus === 'connected' &&
+          (phoneInfo?.display_phone_number ||
+            phoneInfo?.verified_name ||
+            fbQuality ||
+            connectedSince) && (
+          <Card className="gap-0 py-0">
+            <CardContent className="space-y-4 p-6">
+              <div>
+                <h3 className="text-lg font-semibold text-foreground">{t('numberDetailsTitle')}</h3>
+                <p className="mt-1 text-sm text-muted-foreground">{t('numberDetailsDesc')}</p>
+              </div>
+              <dl className="grid gap-3 sm:grid-cols-2">
+                {phoneInfo?.display_phone_number && (
+                  <div className="rounded-lg border border-border bg-muted/40 p-3">
+                    <dt className="text-xs text-muted-foreground">{t('connectedFbNumber')}</dt>
+                    <dd className="mt-1 text-base font-semibold text-foreground">
+                      {phoneInfo.display_phone_number}
+                    </dd>
+                  </div>
+                )}
+                {phoneInfo?.verified_name && (
+                  <div className="rounded-lg border border-border bg-muted/40 p-3">
+                    <dt className="text-xs text-muted-foreground">{t('connectedFbName')}</dt>
+                    <dd className="mt-1 text-base font-semibold text-foreground">
+                      {phoneInfo.verified_name}
+                    </dd>
+                  </div>
+                )}
+                {fbQuality && (
+                  <div className="rounded-lg border border-border bg-muted/40 p-3">
+                    <dt className="text-xs text-muted-foreground">{t('connectedFbQuality')}</dt>
+                    <dd className="mt-1 flex items-center gap-2 text-sm text-foreground">
+                      <span className={cn('size-2.5 rounded-full', fbQuality.dot)} />
+                      {t(fbQuality.labelKey)}
+                    </dd>
+                  </div>
+                )}
+                {connectedSince && (
+                  <div className="rounded-lg border border-border bg-muted/40 p-3">
+                    <dt className="text-xs text-muted-foreground">{t('connectedFbSince')}</dt>
+                    <dd className="mt-1 text-sm text-foreground">{connectedSince}</dd>
+                  </div>
+                )}
+              </dl>
+            </CardContent>
+          </Card>
         )}
 
         {/* API Credentials (manual connect) */}
