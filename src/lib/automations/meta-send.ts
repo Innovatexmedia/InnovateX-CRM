@@ -150,21 +150,29 @@ async function sendViaMeta(input: SendInput): Promise<{ whatsapp_message_id: str
 
   const accessToken = decrypt(config.access_token)
 
-  // Local template row — read for the body we persist below, not for
-  // the Meta payload (the wire shape is deliberately unchanged here).
-  // A missing row is fine: the send still goes out, we just can't
-  // reconstruct the text the customer saw.
-  const templateRow =
+  // Local template row. It is used twice: to build the full Meta
+  // components array (an IMAGE / VIDEO / DOCUMENT header must be sent as
+  // a header component, otherwise Meta rejects the send with
+  // #132012 "Parameter format does not match format in the created
+  // template"), and to reconstruct the body text we persist below. A
+  // missing row is tolerated: the send falls back to the legacy
+  // body-only payload, we just can't send media headers or rebuild the
+  // text the customer saw.
+  const resolvedTemplate =
     input.kind === 'template'
-      ? (
-          await resolveTemplateRow(
-            db,
-            input.accountId,
-            input.templateName,
-            input.language,
-          )
-        ).row
+      ? await resolveTemplateRow(
+          db,
+          input.accountId,
+          input.templateName,
+          input.language,
+        )
       : null
+  if (resolvedTemplate?.malformed) {
+    throw new Error(
+      'Template row is malformed locally — run "Sync from Meta" in Settings to repair it.',
+    )
+  }
+  const templateRow = resolvedTemplate?.row ?? null
 
   const attempt = async (phone: string): Promise<string> => {
     if (input.kind === 'template') {
@@ -174,6 +182,9 @@ async function sendViaMeta(input: SendInput): Promise<{ whatsapp_message_id: str
         to: phone,
         templateName: input.templateName,
         language: input.language,
+        // Full components (header media + body + buttons) are built from
+        // the row; `params` still supplies the body variables.
+        template: templateRow ?? undefined,
         params: input.params,
       })
       return r.messageId
