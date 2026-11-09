@@ -20,7 +20,6 @@ import {
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { useAuth } from '@/hooks/use-auth';
-import { cn } from '@/lib/utils';
 import { useTranslations } from 'next-intl';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -28,6 +27,8 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Switch } from '@/components/ui/switch';
+import { WhatsAppBusinessProfile } from '@/components/settings/whatsapp-business-profile';
+import { WhatsAppNumberDetails } from '@/components/settings/whatsapp-number-details';
 import {
   Dialog,
   DialogContent,
@@ -120,6 +121,10 @@ export function WhatsAppConfig() {
     display_phone_number?: string;
     verified_name?: string;
     quality_rating?: string;
+    messaging_limit_tier?: string;
+    name_status?: string;
+    new_display_name?: string;
+    new_name_status?: string;
   } | null>(null);
   // Guards against re-hydrating the form when the load effect below
   // re-runs for reasons unrelated to actually switching accounts —
@@ -183,19 +188,6 @@ export function WhatsAppConfig() {
     canEditSettings &&
     connectMethod === 'manual' &&
     config?.connected_via === 'embedded_signup';
-  // Meta's quality rating (GREEN/YELLOW/RED) → label key + status dot colour.
-  const fbQuality = (() => {
-    switch (phoneInfo?.quality_rating?.toUpperCase()) {
-      case 'GREEN':
-        return { labelKey: 'connectedFbQualityHigh', dot: 'bg-emerald-500' } as const;
-      case 'YELLOW':
-        return { labelKey: 'connectedFbQualityMedium', dot: 'bg-amber-500' } as const;
-      case 'RED':
-        return { labelKey: 'connectedFbQualityLow', dot: 'bg-red-500' } as const;
-      default:
-        return null;
-    }
-  })();
   const connectedSinceRaw = config?.connected_at ?? config?.registered_at;
   const connectedSince = connectedSinceRaw
     ? new Date(connectedSinceRaw).toLocaleDateString(undefined, {
@@ -947,51 +939,18 @@ export function WhatsAppConfig() {
                 </div>
               </div>
 
-              <dl className="grid gap-3 sm:grid-cols-2">
-                {phoneInfo?.display_phone_number && (
-                  <div className="rounded-lg border border-border bg-muted/40 p-3">
-                    <dt className="text-xs text-muted-foreground">{t('connectedFbNumber')}</dt>
-                    <dd className="mt-1 text-base font-semibold text-foreground">
-                      {phoneInfo.display_phone_number}
-                    </dd>
-                  </div>
-                )}
-                {phoneInfo?.verified_name && (
-                  <div className="rounded-lg border border-border bg-muted/40 p-3">
-                    <dt className="text-xs text-muted-foreground">{t('connectedFbName')}</dt>
-                    <dd className="mt-1 text-base font-semibold text-foreground">
-                      {phoneInfo.verified_name}
-                    </dd>
-                  </div>
-                )}
-                {fbQuality && (
-                  <div className="rounded-lg border border-border bg-muted/40 p-3">
-                    <dt className="text-xs text-muted-foreground">{t('connectedFbQuality')}</dt>
-                    <dd className="mt-1 flex items-center gap-2 text-sm text-foreground">
-                      <span className={cn('size-2.5 rounded-full', fbQuality.dot)} />
-                      {t(fbQuality.labelKey)}
-                    </dd>
-                  </div>
-                )}
-                {connectedSince && (
-                  <div className="rounded-lg border border-border bg-muted/40 p-3">
-                    <dt className="text-xs text-muted-foreground">{t('connectedFbSince')}</dt>
-                    <dd className="mt-1 text-sm text-foreground">{connectedSince}</dd>
-                  </div>
-                )}
-                <div className="rounded-lg border border-border bg-muted/40 p-3">
-                  <dt className="text-xs text-muted-foreground">{t('phoneNumberId')}</dt>
-                  <dd className="mt-1 break-all font-mono text-sm text-foreground">{config.phone_number_id}</dd>
+              <WhatsAppNumberDetails
+                info={phoneInfo}
+                connectedSince={connectedSince}
+                phoneNumberId={config.phone_number_id}
+                wabaId={config.waba_id}
+              />
+              <div className="flex items-center gap-3 rounded-xl border border-border bg-muted/30 px-3 py-2.5">
+                <div className="min-w-0">
+                  <p className="text-xs text-muted-foreground">{t('accessToken')}</p>
+                  <p className="mt-0.5 text-sm font-semibold text-foreground">{t('connectedFbTokenManaged')}</p>
                 </div>
-                <div className="rounded-lg border border-border bg-muted/40 p-3">
-                  <dt className="text-xs text-muted-foreground">{t('wabaId')}</dt>
-                  <dd className="mt-1 break-all font-mono text-sm text-foreground">{config.waba_id}</dd>
-                </div>
-                <div className="rounded-lg border border-border bg-muted/40 p-3 sm:col-span-2">
-                  <dt className="text-xs text-muted-foreground">{t('accessToken')}</dt>
-                  <dd className="mt-1 text-sm text-foreground">{t('connectedFbTokenManaged')}</dd>
-                </div>
-              </dl>
+              </div>
 
               <div className="flex flex-wrap items-center gap-3">
                 <Button
@@ -1062,7 +1021,9 @@ export function WhatsAppConfig() {
           connectionStatus === 'connected' &&
           (phoneInfo?.display_phone_number ||
             phoneInfo?.verified_name ||
-            fbQuality ||
+            phoneInfo?.quality_rating ||
+            phoneInfo?.messaging_limit_tier ||
+            phoneInfo?.name_status ||
             connectedSince) && (
           <Card className="gap-0 py-0">
             <CardContent className="space-y-4 p-6">
@@ -1070,41 +1031,15 @@ export function WhatsAppConfig() {
                 <h3 className="text-lg font-semibold text-foreground">{t('numberDetailsTitle')}</h3>
                 <p className="mt-1 text-sm text-muted-foreground">{t('numberDetailsDesc')}</p>
               </div>
-              <dl className="grid gap-3 sm:grid-cols-2">
-                {phoneInfo?.display_phone_number && (
-                  <div className="rounded-lg border border-border bg-muted/40 p-3">
-                    <dt className="text-xs text-muted-foreground">{t('connectedFbNumber')}</dt>
-                    <dd className="mt-1 text-base font-semibold text-foreground">
-                      {phoneInfo.display_phone_number}
-                    </dd>
-                  </div>
-                )}
-                {phoneInfo?.verified_name && (
-                  <div className="rounded-lg border border-border bg-muted/40 p-3">
-                    <dt className="text-xs text-muted-foreground">{t('connectedFbName')}</dt>
-                    <dd className="mt-1 text-base font-semibold text-foreground">
-                      {phoneInfo.verified_name}
-                    </dd>
-                  </div>
-                )}
-                {fbQuality && (
-                  <div className="rounded-lg border border-border bg-muted/40 p-3">
-                    <dt className="text-xs text-muted-foreground">{t('connectedFbQuality')}</dt>
-                    <dd className="mt-1 flex items-center gap-2 text-sm text-foreground">
-                      <span className={cn('size-2.5 rounded-full', fbQuality.dot)} />
-                      {t(fbQuality.labelKey)}
-                    </dd>
-                  </div>
-                )}
-                {connectedSince && (
-                  <div className="rounded-lg border border-border bg-muted/40 p-3">
-                    <dt className="text-xs text-muted-foreground">{t('connectedFbSince')}</dt>
-                    <dd className="mt-1 text-sm text-foreground">{connectedSince}</dd>
-                  </div>
-                )}
-              </dl>
+              <WhatsAppNumberDetails info={phoneInfo} connectedSince={connectedSince} />
             </CardContent>
           </Card>
+        )}
+
+        {/* Business profile (photo, about, address, …) — any connected
+            number, Facebook or manual. Admins edit; viewers read. */}
+        {config && connectionStatus === 'connected' && (
+          <WhatsAppBusinessProfile canEdit={canEditSettings} />
         )}
 
         {/* API Credentials (manual connect) */}

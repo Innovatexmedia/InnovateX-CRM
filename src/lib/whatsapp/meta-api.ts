@@ -893,7 +893,34 @@ export async function deleteMessageTemplate(
   // side, and we still want the local row removed.
   if (response.status === 404) return
   if (!response.ok) {
+    // Meta answers "(#100) Invalid parameter" when asked to delete a
+    // template that no longer exists (deleted in WhatsApp Manager, or it
+    // belongs to a previously connected WhatsApp account). Confirm it is
+    // really gone before treating the delete as done, so the local row
+    // does not get stuck forever.
+    if (response.status === 400) {
+      const gone = await templateIsGoneOnMeta({ wabaId, accessToken, name })
+      if (gone) return
+    }
     await throwMetaError(response, `Meta API error: ${response.status}`)
+  }
+}
+
+async function templateIsGoneOnMeta(args: {
+  wabaId: string
+  accessToken: string
+  name: string
+}): Promise<boolean> {
+  try {
+    const url = `${META_API_BASE}/${args.wabaId}/message_templates?name=${encodeURIComponent(args.name)}&fields=id,name&limit=5`
+    const res = await fetch(url, {
+      headers: { Authorization: `Bearer ${args.accessToken}` },
+    })
+    if (!res.ok) return false
+    const json = (await res.json()) as { data?: { name?: string }[] }
+    return !(json.data ?? []).some((t) => t.name === args.name)
+  } catch {
+    return false
   }
 }
 
@@ -1338,4 +1365,141 @@ export async function downloadMedia(
     response.headers.get('content-type') || 'application/octet-stream'
   const buffer = Buffer.from(await response.arrayBuffer())
   return { buffer, contentType }
+}
+
+// ============================================================
+// Business Profile (about, description, address, email, websites,
+// category, profile photo) + phone-number extras (messaging limit,
+// display-name review status)
+// ============================================================
+
+import type { MetaBusinessProfileData } from './business-profile'
+
+export interface BusinessProfileArgs {
+  phoneNumberId: string
+  accessToken: string
+}
+
+/**
+ * Read the public WhatsApp Business Profile of a phone number.
+ * `GET /{phone_number_id}/whatsapp_business_profile` answers
+ * `{ data: [ { about, address, ... } ] }`; the first entry is the profile.
+ */
+export async function getBusinessProfile(
+  args: BusinessProfileArgs,
+): Promise<MetaBusinessProfileData> {
+  const { phoneNumberId, accessToken } = args
+  const fields =
+    'about,address,description,email,profile_picture_url,websites,vertical'
+  const response = await fetch(
+    `${META_API_BASE}/${phoneNumberId}/whatsapp_business_profile?fields=${fields}`,
+    { headers: { Authorization: `Bearer ${accessToken}` } },
+  )
+  if (!response.ok) {
+    await throwMetaError(response, `Meta API error: ${response.status}`)
+  }
+  const body = (await response.json()) as { data?: MetaBusinessProfileData[] }
+  return body.data?.[0] ?? {}
+}
+
+export interface UpdateBusinessProfileArgs extends BusinessProfileArgs {
+  fields: {
+    about?: string
+    address?: string
+    description?: string
+    email?: string
+    vertical?: string
+    websites?: string[]
+    /** From the Resumable Upload API — see {@link uploadResumableMedia}. */
+    profile_picture_handle?: string
+  }
+}
+
+/**
+ * Update the business profile. Meta only changes the fields that are sent,
+ * so a photo-only update passes just `profile_picture_handle`.
+ */
+export async function updateBusinessProfile(
+  args: UpdateBusinessProfileArgs,
+): Promise<void> {
+  const { phoneNumberId, accessToken, fields } = args
+  const response = await fetch(
+    `${META_API_BASE}/${phoneNumberId}/whatsapp_business_profile`,
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${accessToken}`,
+      },
+      body: JSON.stringify({ messaging_product: 'whatsapp', ...fields }),
+    },
+  )
+  if (!response.ok) {
+    await throwMetaError(response, `Meta API error: ${response.status}`)
+  }
+}
+
+/** Phone-number fields beyond the basics that `verifyPhoneNumber` reads. */
+export interface MetaPhoneExtras {
+  /** `TIER_250`, `TIER_1K`, `TIER_10K`, `TIER_100K`, `TIER_UNLIMITED`. */
+  messaging_limit_tier?: string
+  /** Review status of the current display name. */
+  name_status?: string
+  /** A display name awaiting Meta review, if one was requested. */
+  new_display_name?: string
+  new_name_status?: string
+}
+
+export type PhoneExtraField = keyof MetaPhoneExtras
+
+/**
+ * Best-effort read of extra phone-number fields. Kept separate from
+ * `verifyPhoneNumber` on purpose: that call proves the credentials work, and
+ * an unsupported field here must never turn a healthy connection into an
+ * unhealthy one. Each field group is requested on its own and a failure
+ * simply leaves those fields out — this function never throws.
+ */
+export async function getPhoneNumberExtras(
+  args: BusinessProfileArgs & { fields: PhoneExtraField[] },
+): Promise<MetaPhoneExtras> {
+  const { phoneNumberId, accessToken, fields } = args
+  if (fields.length === 0) return {}
+  try {
+    const response = await fetch(
+      `${META_API_BASE}/${phoneNumberId}?fields=${fields.join(',')}`,
+      { headers: { Authorization: `Bearer ${accessToken}` } },
+    )
+    if (!response.ok) return {}
+    const data = (await response.json()) as Record<string, unknown>
+    const out: MetaPhoneExtras = {}
+    for (const f of fields) {
+      const v = data[f]
+      if (typeof v === 'string' && v) out[f] = v
+    }
+    return out
+  } catch {
+    return {}
+  }
+}
+
+/**
+ * Ask Meta to review a new display name:
+ * `POST /{phone_number_id}` with `new_display_name`. The current name stays
+ * live until Meta approves the new one (`new_name_status` tracks it).
+ */
+export async function requestDisplayNameChange(
+  args: BusinessProfileArgs & { newDisplayName: string },
+): Promise<void> {
+  const { phoneNumberId, accessToken, newDisplayName } = args
+  const response = await fetch(`${META_API_BASE}/${phoneNumberId}`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${accessToken}`,
+    },
+    body: JSON.stringify({ new_display_name: newDisplayName }),
+  })
+  if (!response.ok) {
+    await throwMetaError(response, `Meta API error: ${response.status}`)
+  }
 }

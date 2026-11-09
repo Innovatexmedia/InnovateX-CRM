@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createClient as createAdminClient } from '@supabase/supabase-js'
 import {
+  getPhoneNumberExtras,
   getSubscribedApps,
   listWabaPhoneNumbers,
   registerPhoneNumber,
@@ -222,9 +223,25 @@ export async function GET() {
       }
     }
 
+    // Messaging limit and display-name review status, read live from Meta.
+    // Best-effort and fetched separately: an unsupported field must only
+    // hide its own cell, never make a healthy connection look broken.
+    const [limitExtras, nameExtras] = await Promise.all([
+      getPhoneNumberExtras({
+        phoneNumberId: config.phone_number_id,
+        accessToken,
+        fields: ['messaging_limit_tier'],
+      }),
+      getPhoneNumberExtras({
+        phoneNumberId: config.phone_number_id,
+        accessToken,
+        fields: ['name_status', 'new_display_name', 'new_name_status'],
+      }),
+    ])
+
     return NextResponse.json({
       connected: true,
-      phone_info: phoneInfo,
+      phone_info: { ...phoneInfo, ...limitExtras, ...nameExtras },
       waba_subscription: wabaSubscription,
     })
   } catch (error) {
