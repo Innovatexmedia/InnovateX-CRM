@@ -249,7 +249,10 @@ export function TemplatePicker({
             )}
           </div>
         ) : (
-          <div className="space-y-3">
+          // Capped + scrollable so a template with many variables
+          // ({{1}}–{{7}}…) never pushes its lower inputs and the Send
+          // button off-screen.
+          <div className="max-h-[60vh] space-y-3 overflow-y-auto pr-1">
             <div className="rounded-md border border-border bg-background/50 p-3">
               <p className="mb-1 text-xs text-muted-foreground">{t("preview")}</p>
               <p className="whitespace-pre-wrap text-sm text-popover-foreground">
