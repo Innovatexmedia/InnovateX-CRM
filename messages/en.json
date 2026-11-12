@@ -1157,7 +1157,9 @@
         },
         "webhookVarsGroup": "Webhook variables",
         "webhookVarsHint": "Using an Incoming Webhook? Map its data (e.g. booking date/time) under the trigger's variables, and it will appear in Insert field.",
-        "customFieldsGroup": "Custom fields"
+        "customFieldsGroup": "Custom fields",
+        "unknownToken": "Not a valid field: {tokens}. It sends empty, so the fallback is used. Pick a field from Insert field below.",
+        "customFieldLabel": "Field: {name}"
       },
       "branches": {
         "yes": "Yes",

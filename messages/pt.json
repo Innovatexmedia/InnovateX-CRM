@@ -1157,7 +1157,9 @@
         },
         "webhookVarsGroup": "Variáveis do webhook",
         "webhookVarsHint": "Usa um Incoming Webhook? Mapeie os dados dele (ex.: data/hora do agendamento) nas variáveis do gatilho e eles aparecerão em Inserir campo.",
-        "customFieldsGroup": "Campos personalizados"
+        "customFieldsGroup": "Campos personalizados",
+        "unknownToken": "Campo inválido: {tokens}. Vai vazio e o valor alternativo é usado. Escolha um campo em Inserir campo.",
+        "customFieldLabel": "Campo: {name}"
       },
       "branches": {
         "yes": "Sim",

@@ -1157,7 +1157,9 @@
         },
         "webhookVarsGroup": "웹훅 변수",
         "webhookVarsHint": "Incoming Webhook을 사용 중인가요? 트리거의 변수에서 데이터(예: 예약 날짜/시간)를 매핑하면 필드 삽입에 표시됩니다.",
-        "customFieldsGroup": "사용자 정의 필드"
+        "customFieldsGroup": "사용자 정의 필드",
+        "unknownToken": "유효하지 않은 필드: {tokens}. 빈 값으로 전송되어 대체값이 사용됩니다. 아래 필드 삽입에서 선택하세요.",
+        "customFieldLabel": "필드: {name}"
       },
       "branches": {
         "yes": "예",

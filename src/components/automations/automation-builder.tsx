@@ -295,6 +295,28 @@ function customOf(value: string): string | null {
   return m ? m[1] : null
 }
 
+/** True when a value is empty or made only of `{{ ... }}` tokens (known or
+ *  not), so picking a field should replace it rather than append to it. */
+function onlyTokens(value: string): boolean {
+  return /^(\s*\{\{[^}]*\}\}\s*)*$/.test(value)
+}
+
+/** Tokens in a value the engine cannot resolve (they would render empty
+ *  and silently trigger the fallback). */
+function unknownTokens(value: string): string[] {
+  const out: string[] = []
+  for (const m of value.matchAll(/\{\{\s*([\w.-]+)\s*\}\}/g)) {
+    const [ns, prop] = m[1].split(".")
+    const ok =
+      (ns === "contact" && TEMPLATE_VAR_FIELDS.includes(prop as never)) ||
+      (ns === "vars" && !!prop) ||
+      (ns === "custom" && !!prop) ||
+      m[1] === "message.text"
+    if (!ok) out.push(m[0])
+  }
+  return out
+}
+
 /** Dropdown value for whichever single token a template variable holds. */
 function insertValueOf(value: string): string {
   const f = fieldOf(value)
@@ -774,6 +796,22 @@ function SendTemplateFields({
                   placeholder="{{ contact.name }}"
                   className="bg-muted text-foreground"
                 />
+                {customOf(variables[key] ?? "") && (
+                  <p className="text-xs text-muted-foreground">
+                    {t("templates.customFieldLabel", {
+                      name:
+                        customFields.find((cf) => cf.id === customOf(variables[key] ?? ""))
+                          ?.field_name ?? "?",
+                    })}
+                  </p>
+                )}
+                {unknownTokens(variables[key] ?? "").length > 0 && (
+                  <p className="text-xs text-amber-600">
+                    {t("templates.unknownToken", {
+                      tokens: unknownTokens(variables[key] ?? "").join(" "),
+                    })}
+                  </p>
+                )}
                 <select
                   value={insertValueOf(variables[key] ?? "")}
                   onChange={(e) => {
@@ -787,8 +825,7 @@ function SendTemplateFields({
                       : f.startsWith("custom:")
                         ? `{{ custom.${f.slice(7)} }}`
                         : `{{ contact.${f} }}`
-                    const isSingle = fieldOf(cur) || varOf(cur) || customOf(cur)
-                    setVar(key, !cur || isSingle ? token : `${cur} ${token}`)
+                    setVar(key, onlyTokens(cur) ? token : `${cur} ${token}`)
                   }}
                   className={SELECT_CLASS}
                   aria-label={t("templates.insertField")}
