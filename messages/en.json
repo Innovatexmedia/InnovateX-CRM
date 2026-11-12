@@ -1734,7 +1734,10 @@
       "toastInvalidDocument": "Header document must be a PDF, Word, PowerPoint, Excel or text file.",
       "toastMediaTooLarge": "File is {size} MB — the upload limit is {max} MB.",
       "toastUploadSuccess": "File uploaded.",
-      "toastUploadFailed": "Upload failed."
+      "toastUploadFailed": "Upload failed.",
+      "selectCategory": "Select a category",
+      "categoryRequired": "Choose a category before submitting.",
+      "categoryHint": "Booking, order or account confirmations and reminders are Utility. Offers and promotions are Marketing."
     },
     "roles": {
       "admin": "Admin",

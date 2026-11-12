@@ -70,7 +70,9 @@ const categoryColors: Record<string, string> = {
 
 interface TemplateFormData {
   name: string;
-  category: MessageTemplate['category'];
+  // '' = not chosen yet: the user must pick one explicitly, so a
+  // transactional template is never silently submitted as Marketing.
+  category: MessageTemplate['category'] | '';
   language: string;
   header_format: HeaderFormat;
   header_content: string;
@@ -84,7 +86,7 @@ interface TemplateFormData {
 
 const emptyForm: TemplateFormData = {
   name: '',
-  category: 'Marketing',
+  category: '',
   language: 'en_US',
   header_format: 'none',
   header_content: '',
@@ -222,7 +224,7 @@ export function TemplateManager() {
 
     return {
       name: form.name.trim(),
-      category: form.category,
+      category: form.category as MessageTemplate['category'],
       language: form.language.trim() || 'en_US',
       header_type: form.header_format === 'none' ? undefined : form.header_format,
       header_content:
@@ -267,6 +269,10 @@ export function TemplateManager() {
     // AUTHENTICATION is blocked by the persistent banner + disabled
     // submit button; this is a defensive second line of defense.
     if (form.category === 'Authentication') return;
+    if (!form.category) {
+      toast.error(t('categoryRequired'));
+      return;
+    }
     try {
       setSubmitting(true);
       const isEdit = editingId !== null;
@@ -714,7 +720,7 @@ export function TemplateManager() {
               <div className="space-y-2">
                 <Label className="text-muted-foreground">{t('category')}</Label>
                 <Select
-                  value={form.category}
+                  value={form.category || undefined}
                   onValueChange={(val) =>
                     setForm({
                       ...form,
@@ -723,7 +729,7 @@ export function TemplateManager() {
                   }
                 >
                   <SelectTrigger className="w-full bg-muted border-border text-foreground">
-                    <SelectValue />
+                    <SelectValue placeholder={t('selectCategory')} />
                   </SelectTrigger>
                   <SelectContent className="bg-popover border-border">
                     {CATEGORIES.map((cat) => (
@@ -737,6 +743,7 @@ export function TemplateManager() {
                     ))}
                   </SelectContent>
                 </Select>
+                <p className="text-xs text-muted-foreground">{t('categoryHint')}</p>
               </div>
 
               <div className="space-y-2">
@@ -1099,7 +1106,7 @@ export function TemplateManager() {
             </Button>
             <Button
               onClick={handleSubmit}
-              disabled={submitting || form.category === 'Authentication'}
+              disabled={submitting || !form.category || form.category === 'Authentication'}
               className="bg-primary hover:bg-primary/90 text-primary-foreground"
             >
               {submitting ? (

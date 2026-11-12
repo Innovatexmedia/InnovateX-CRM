@@ -1734,7 +1734,10 @@
       "toastInvalidDocument": "O documento do cabeçalho deve ser um arquivo PDF, Word, PowerPoint, Excel ou texto.",
       "toastMediaTooLarge": "O arquivo tem {size} MB — o limite de upload é {max} MB.",
       "toastUploadSuccess": "Arquivo enviado.",
-      "toastUploadFailed": "Falha no upload."
+      "toastUploadFailed": "Falha no upload.",
+      "selectCategory": "Selecione uma categoria",
+      "categoryRequired": "Escolha uma categoria antes de enviar.",
+      "categoryHint": "Confirmações e lembretes de reservas, pedidos ou contas são Utilidade. Ofertas e promoções são Marketing."
     },
     "roles": {
       "admin": "Administrador",

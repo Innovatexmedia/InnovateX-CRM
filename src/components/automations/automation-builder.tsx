@@ -759,7 +759,7 @@ function SendTemplateFields({
             const lang = tmpl.language ?? "en_US"
             return (
               <option key={tmpl.id} value={toValue(tmpl.name, lang)}>
-                {tmpl.name} ({lang})
+                {tmpl.name} ({lang}) · {tmpl.category}
               </option>
             )
           })}

@@ -1734,7 +1734,10 @@
       "toastInvalidDocument": "헤더 문서는 PDF, Word, PowerPoint, Excel 또는 텍스트 파일이어야 합니다.",
       "toastMediaTooLarge": "파일 크기가 {size}MB입니다 — 업로드 제한은 {max}MB입니다.",
       "toastUploadSuccess": "파일이 업로드되었습니다.",
-      "toastUploadFailed": "업로드에 실패했습니다."
+      "toastUploadFailed": "업로드에 실패했습니다.",
+      "selectCategory": "카테고리 선택",
+      "categoryRequired": "제출하기 전에 카테고리를 선택하세요.",
+      "categoryHint": "예약·주문·계정 확인 및 알림은 유틸리티, 할인·프로모션은 마케팅입니다."
     },
     "roles": {
       "admin": "관리자",

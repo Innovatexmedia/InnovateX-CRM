@@ -1734,7 +1734,10 @@
       "toastInvalidDocument": "El documento del encabezado debe ser un archivo PDF, Word, PowerPoint, Excel o de texto.",
       "toastMediaTooLarge": "El archivo pesa {size} MB; el límite de carga es {max} MB.",
       "toastUploadSuccess": "Archivo subido.",
-      "toastUploadFailed": "Error al subir."
+      "toastUploadFailed": "Error al subir.",
+      "selectCategory": "Selecciona una categoría",
+      "categoryRequired": "Elige una categoría antes de enviar.",
+      "categoryHint": "Las confirmaciones y recordatorios de reservas, pedidos o cuentas son Utilidad. Las ofertas y promociones son Marketing."
     },
     "roles": {
       "admin": "Administrador",
