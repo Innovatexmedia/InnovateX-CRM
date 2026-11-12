@@ -27,6 +27,31 @@ describe('renderTemplateValue', () => {
   })
 })
 
+describe('custom field tokens', () => {
+  const FIELD = '3f0c1d52-8a4b-4c6e-9d11-2b7a5c9e0f44'
+  const withCustom = { ...ctx, custom: { [FIELD]: '12 Nov, 3 PM' } }
+
+  it('renders a custom field by its id (UUID with hyphens)', () => {
+    expect(renderTemplateValue(`{{ custom.${FIELD} }}`, withCustom)).toBe('12 Nov, 3 PM')
+    expect(renderTemplateValue(`Slot: {{custom.${FIELD}}}`, withCustom)).toBe('Slot: 12 Nov, 3 PM')
+  })
+
+  it('renders empty when the contact has no value or the field is unknown', () => {
+    expect(renderTemplateValue(`{{ custom.${FIELD} }}`, ctx)).toBe('')
+    expect(renderTemplateValue('{{ custom.not-a-field }}', withCustom)).toBe('')
+    expect(renderTemplateValue(`{{ custom.${FIELD} }}`, { ...ctx, custom: { [FIELD]: null } })).toBe('')
+  })
+
+  it('uses the fallback when the custom value is blank', () => {
+    expect(
+      resolveTemplateParams({ '1': `{{ custom.${FIELD} }}` }, { '1': 'your slot' }, ctx),
+    ).toEqual(['your slot'])
+    expect(() => resolveTemplateParams({ '1': `{{ custom.${FIELD} }}` }, {}, ctx)).toThrow(
+      /empty/,
+    )
+  })
+})
+
 describe('resolveTemplateParams', () => {
   it('returns [] when the step has no variables', () => {
     expect(resolveTemplateParams(undefined, undefined, ctx)).toEqual([])

@@ -1154,7 +1154,10 @@
           "phone": "연락처 전화번호",
           "email": "연락처 이메일",
           "company": "연락처 회사"
-        }
+        },
+        "webhookVarsGroup": "웹훅 변수",
+        "webhookVarsHint": "Incoming Webhook을 사용 중인가요? 트리거의 변수에서 데이터(예: 예약 날짜/시간)를 매핑하면 필드 삽입에 표시됩니다.",
+        "customFieldsGroup": "사용자 정의 필드"
       },
       "branches": {
         "yes": "예",

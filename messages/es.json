@@ -1154,7 +1154,10 @@
           "phone": "Teléfono del contacto",
           "email": "Correo del contacto",
           "company": "Empresa del contacto"
-        }
+        },
+        "webhookVarsGroup": "Variables del webhook",
+        "webhookVarsHint": "¿Usas un Incoming Webhook? Asigna sus datos (p. ej. fecha/hora de la reserva) en las variables del disparador y aparecerán en Insertar campo.",
+        "customFieldsGroup": "Campos personalizados"
       },
       "branches": {
         "yes": "Sí",

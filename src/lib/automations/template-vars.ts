@@ -21,13 +21,16 @@ export interface TemplateVarContext {
   contact: TemplateVarContact
   /** Trigger variables, e.g. the incoming webhook's mapped `vars`. */
   vars?: Record<string, unknown>
+  /** The contact's custom field values, keyed by `custom_fields.id`. */
+  custom?: Record<string, string | null | undefined>
   messageText?: string | null
 }
 
-const TOKEN_RE = /\{\{\s*([\w.]+)\s*\}\}/g
+// Hyphen allowed so a `custom.<custom_fields.id>` (a UUID) token matches.
+const TOKEN_RE = /\{\{\s*([\w.-]+)\s*\}\}/g
 
-/** Render `{{ contact.name }}`, `{{ vars.order_id }}`, `{{ message.text }}`
- *  inside one value. Unknown tokens render as an empty string. */
+/** Render `{{ contact.name }}`, `{{ vars.order_id }}`, `{{ custom.<field id> }}`,
+ *  `{{ message.text }}` inside one value. Unknown tokens render as an empty string. */
 export function renderTemplateValue(value: string, ctx: TemplateVarContext): string {
   return value.replace(TOKEN_RE, (_, key: string) => {
     const [ns, prop] = key.split('.')
@@ -37,6 +40,10 @@ export function renderTemplateValue(value: string, ctx: TemplateVarContext): str
     }
     if (ns === 'vars' && prop) {
       const v = ctx.vars?.[prop]
+      return v == null ? '' : String(v)
+    }
+    if (ns === 'custom' && prop) {
+      const v = ctx.custom?.[prop]
       return v == null ? '' : String(v)
     }
     if (ns === 'message' && prop === 'text') return String(ctx.messageText ?? '')

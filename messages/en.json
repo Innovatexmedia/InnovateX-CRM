@@ -1154,7 +1154,10 @@
           "phone": "Contact phone",
           "email": "Contact email",
           "company": "Contact company"
-        }
+        },
+        "webhookVarsGroup": "Webhook variables",
+        "webhookVarsHint": "Using an Incoming Webhook? Map its data (e.g. booking date/time) under the trigger's variables, and it will appear in Insert field.",
+        "customFieldsGroup": "Custom fields"
       },
       "branches": {
         "yes": "Yes",

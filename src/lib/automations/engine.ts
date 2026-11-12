@@ -498,7 +498,7 @@ async function runStep(step: AutomationStep, args: ExecuteArgs): Promise<string>
       if (!cfg.template_name) throw new Error('send_template needs template_name')
       const conversationId = await resolveConversationId(args)
       // Meta templates use positional {{1}}, {{2}}, … placeholders. Each
-      // step value may hold {{ contact.name }} / {{ vars.x }} tokens and
+      // step value may hold {{ contact.name }} / {{ vars.x }} / {{ custom.<id> }} tokens and
       // has an optional fallback; resolveTemplateParams renders them in
       // strict numeric order and fails clearly if one stays empty.
       const { data: contactRow } = await db
@@ -507,9 +507,25 @@ async function runStep(step: AutomationStep, args: ExecuteArgs): Promise<string>
         .eq('id', args.contactId)
         .eq('account_id', args.automation.account_id)
         .maybeSingle()
+      // Custom-field tokens ({{ custom.<field id> }}) need the contact's
+      // stored values; only look them up when a variable actually uses one.
+      const usesCustom = Object.values(cfg.variables ?? {}).some((v) =>
+        /\{\{\s*custom\./.test(String(v ?? '')),
+      )
+      const custom: Record<string, string | null> = {}
+      if (usesCustom) {
+        const { data: customRows } = await db
+          .from('contact_custom_values')
+          .select('custom_field_id, value')
+          .eq('contact_id', args.contactId)
+        for (const row of customRows ?? []) {
+          custom[row.custom_field_id as string] = (row.value as string | null) ?? null
+        }
+      }
       const params = resolveTemplateParams(cfg.variables, cfg.fallbacks, {
         contact: contactRow ?? {},
         vars: args.context.vars,
+        custom,
         messageText: args.context.message_text,
       })
       const { whatsapp_message_id } = await engineSendTemplate({

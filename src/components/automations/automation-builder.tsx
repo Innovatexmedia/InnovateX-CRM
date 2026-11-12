@@ -260,6 +260,51 @@ function useResources(): AutomationResources {
   return useContext(ResourcesContext)
 }
 
+/**
+ * Variable names the automation's Incoming Webhook trigger maps
+ * (`field_mapping.vars`), or `null` when the trigger isn't an incoming
+ * webhook. The Send Template step reads this to offer them in its
+ * "Insert field" dropdown as `{{ vars.<name> }}` tokens — the engine
+ * already renders those per run; this only makes them discoverable.
+ */
+const TriggerVarsContext = createContext<string[] | null>(null)
+
+/** Mapped webhook variable names that can be written as a
+ *  `{{ vars.<name> }}` token (word characters only — the token grammar
+ *  splits on dots). */
+function webhookVarNames(
+  triggerType: string,
+  triggerConfig: Record<string, unknown>,
+): string[] | null {
+  if (triggerType !== "incoming_webhook") return null
+  const mapping = (triggerConfig.field_mapping ?? {}) as { vars?: Record<string, string> }
+  return Object.keys(mapping.vars ?? {}).filter((k) => /^\w+$/.test(k))
+}
+
+/** The webhook variable a value consists of, when it is exactly one
+ *  `{{ vars.<name> }}` token (so the dropdown can show it as chosen). */
+function varOf(value: string): string | null {
+  const m = value.trim().match(/^\{\{\s*vars\.(\w+)\s*\}\}$/)
+  return m ? m[1] : null
+}
+
+/** The custom field id a value consists of, when it is exactly one
+ *  `{{ custom.<field id> }}` token (ids are UUIDs, hence the hyphen). */
+function customOf(value: string): string | null {
+  const m = value.trim().match(/^\{\{\s*custom\.([\w-]+)\s*\}\}$/)
+  return m ? m[1] : null
+}
+
+/** Dropdown value for whichever single token a template variable holds. */
+function insertValueOf(value: string): string {
+  const f = fieldOf(value)
+  if (f) return f
+  const v = varOf(value)
+  if (v) return `vars:${v}`
+  const c = customOf(value)
+  return c ? `custom:${c}` : ""
+}
+
 function ResourcesProvider({ children }: { children: ReactNode }) {
   const [tags, setTags] = useState<TagRecord[]>([])
   const [members, setMembers] = useState<AccountMember[]>([])
@@ -598,7 +643,8 @@ function SendTemplateFields({
   onChange: (patch: Record<string, unknown>) => void
   t: ReturnType<typeof useTranslations>
 }) {
-  const { templates } = useResources()
+  const { templates, customFields } = useResources()
+  const webhookVars = useContext(TriggerVarsContext)
 
   const selected = templates.find(
     (x) => x.name === templateName && (x.language ?? "en_US") === language,
@@ -709,6 +755,9 @@ function SendTemplateFields({
             {t("templates.variablesTitle")}
           </p>
           <p className="text-xs text-muted-foreground">{t("templates.variablesHint")}</p>
+          {webhookVars && webhookVars.length === 0 && (
+            <p className="text-xs text-muted-foreground">{t("templates.webhookVarsHint")}</p>
+          )}
           <p className="whitespace-pre-wrap rounded bg-muted px-2 py-1 text-xs text-muted-foreground">
             {selected.body_text}
           </p>
@@ -726,15 +775,20 @@ function SendTemplateFields({
                   className="bg-muted text-foreground"
                 />
                 <select
-                  value={fieldOf(variables[key] ?? "") ?? ""}
+                  value={insertValueOf(variables[key] ?? "")}
                   onChange={(e) => {
                     const f = e.target.value
                     if (!f) return
                     const cur = (variables[key] ?? "").trim()
                     // Empty or already a single field -> replace it;
                     // otherwise (custom text) append so nothing is lost.
-                    const token = `{{ contact.${f} }}`
-                    setVar(key, !cur || fieldOf(cur) ? token : `${cur} ${token}`)
+                    const token = f.startsWith("vars:")
+                      ? `{{ vars.${f.slice(5)} }}`
+                      : f.startsWith("custom:")
+                        ? `{{ custom.${f.slice(7)} }}`
+                        : `{{ contact.${f} }}`
+                    const isSingle = fieldOf(cur) || varOf(cur) || customOf(cur)
+                    setVar(key, !cur || isSingle ? token : `${cur} ${token}`)
                   }}
                   className={SELECT_CLASS}
                   aria-label={t("templates.insertField")}
@@ -745,6 +799,24 @@ function SendTemplateFields({
                       {t(`templates.field.${f}`)}
                     </option>
                   ))}
+                  {customFields.length > 0 && (
+                    <optgroup label={t("templates.customFieldsGroup")}>
+                      {customFields.map((f) => (
+                        <option key={f.id} value={`custom:${f.id}`}>
+                          {f.field_name}
+                        </option>
+                      ))}
+                    </optgroup>
+                  )}
+                  {webhookVars && webhookVars.length > 0 && (
+                    <optgroup label={t("templates.webhookVarsGroup")}>
+                      {webhookVars.map((name) => (
+                        <option key={name} value={`vars:${name}`}>
+                          {name}
+                        </option>
+                      ))}
+                    </optgroup>
+                  )}
                 </select>
                 <Input
                   value={fallbacks[key] ?? ""}
@@ -911,6 +983,9 @@ export function AutomationBuilder({ initial }: { initial: BuilderInitial }) {
         <div className="absolute inset-0 bg-[radial-gradient(circle,var(--border)_1px,transparent_1px)] [background-size:20px_20px] pointer-events-none" />
         <div className="relative mx-auto flex max-w-2xl flex-col items-center gap-0 px-4 py-10">
           <ResourcesProvider>
+            <TriggerVarsContext.Provider
+              value={webhookVarNames(state.trigger_type, state.trigger_config)}
+            >
             <TriggerCard
               type={state.trigger_type}
               config={state.trigger_config}
@@ -930,6 +1005,7 @@ export function AutomationBuilder({ initial }: { initial: BuilderInitial }) {
               deleteStepAt={deleteStepAt}
               moveStepAt={moveStepAt}
             />
+            </TriggerVarsContext.Provider>
           </ResourcesProvider>
         </div>
       </div>

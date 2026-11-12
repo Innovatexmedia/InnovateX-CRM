@@ -1154,7 +1154,10 @@
           "phone": "Telefone do contato",
           "email": "E-mail do contato",
           "company": "Empresa do contato"
-        }
+        },
+        "webhookVarsGroup": "Variáveis do webhook",
+        "webhookVarsHint": "Usa um Incoming Webhook? Mapeie os dados dele (ex.: data/hora do agendamento) nas variáveis do gatilho e eles aparecerão em Inserir campo.",
+        "customFieldsGroup": "Campos personalizados"
       },
       "branches": {
         "yes": "Sim",
